@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+__pycache__
+*.pyc
+venv
+env
+
+# Build outputs
+.next
+build
+dist
+out
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+.pytest_cache
+htmlcov
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform
+
+# Misc
+temp
+tmp
+.cache
+
