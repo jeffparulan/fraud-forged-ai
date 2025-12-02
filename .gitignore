@@ -101,3 +101,5 @@ data/
 infrastructure/*.tfvars
 *.tfvars
 .env
+*.tfvars
+.env
