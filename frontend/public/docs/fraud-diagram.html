@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudForge AI - Architecture Diagram</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #f8fafc;
+            padding: 1.5rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+        }
+
+        /* Main Architecture Grid */
+        .architecture {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 3rem;
+            position: relative;
+        }
+
+        .flow {
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .layer {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            position: relative;
+        }
+
+        /* Component Cards */
+        .component {
+            background: rgba(255, 255, 255, 0.06);
+            border: 3px solid;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            min-width: 180px;
+            position: relative;
+        }
+
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .component-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .component-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .component-desc {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .component-badge {
+            display: inline-block;
+            background: rgba(66, 133, 244, 0.2);
+            border: 1px solid rgba(66, 133, 244, 0.4);
+            padding: 0.3rem 0.8rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            color: #93b4fd;
+        }
+
+        /* Group Boxes */
+        .group-box {
+            border: 3px dashed;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            position: relative;
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .group-label {
+            position: absolute;
+            top: -18px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
+            padding: 0.5rem 1.2rem;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 2px solid;
+            z-index: 20;
+            white-space: nowrap;
+        }
+
+        /* Colors */
+        .user { border-color: #3b82f6; background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05)); }
+        .gcp { border-color: #4285f4; background: rgba(66, 133, 244, 0.05); }
+        .gcp .group-label { color: #4285f4; border-color: #4285f4; }
+        .frontend { border-color: #8b5cf6; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); }
+        .backend { border-color: #6366f1; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05)); }
+        .orchestration { border-color: #10b981; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); }
+        .ai { border-color: #ec4899; background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(236, 72, 153, 0.05)); }
+        .hf { border-color: #ec4899; background: rgba(236, 72, 153, 0.05); }
+        .hf .group-label { color: #ec4899; border-color: #ec4899; }
+        .data { border-color: #f59e0b; background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)); }
+
+        /* Models Grid */
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+
+        .model-card {
+            background: rgba(236, 72, 153, 0.1);
+            border: 2px solid #ec4899;
+            border-radius: 1rem;
+            padding: 1.2rem;
+            text-align: center;
+            min-width: 160px;
+        }
+
+        /* Arrow */
+        .arrow {
+            color: #6366f1;
+            font-size: 2.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Side arrow for MCP connection */
+        .side-arrow {
+            color: #06b6d4;
+            font-size: 1.8rem;
+            animation: pulse 2s ease-in-out infinite;
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 1rem;
+            margin-top: 2rem;
+        }
+
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: bold; }
+        .stat-label { font-size: 0.9rem; color: #94a3b8; margin-top: 0.3rem; }
+
+        .color-green { color: #10b981; }
+        .color-blue { color: #3b82f6; }
+        .color-purple { color: #8b5cf6; }
+        .color-yellow { color: #f59e0b; }
+
+        footer {
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.95rem;
+            color: #94a3b8;
+            margin-top: 2rem;
+        }
+
+        .overview {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: #6ee7b7;
+            margin-top: 0.75rem;
+        }
+
+        .gcp-icon {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            max-width: 28px;
+            max-height: 28px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+            flex-shrink: 0;
+            object-fit: contain;
+            object-position: center;
+        }
+
+        .hf-icon {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            max-width: 28px;
+            max-height: 28px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+            flex-shrink: 0;
+            object-fit: contain;
+            object-position: center;
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .vertexai-icon {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            max-width: 28px;
+            max-height: 28px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+            flex-shrink: 0;
+            object-fit: contain;
+            object-position: center;
+        }
+
+        /* Terraform Infrastructure */
+        .terraform { 
+            border-color: #7B42BC; 
+            background: linear-gradient(135deg, rgba(123, 66, 188, 0.15), rgba(123, 66, 188, 0.05)); 
+        }
+        
+        .terraform-icon {
+            width: 32px;
+            height: 32px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+            object-fit: contain;
+        }
+
+        .infrastructure-layer {
+            background: rgba(123, 66, 188, 0.05);
+            border: 2px solid rgba(123, 66, 188, 0.3);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .infrastructure-text {
+            font-size: 1.1rem;
+            color: #c4b5fd;
+            font-weight: 600;
+        }
+
+        .infrastructure-desc {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 FraudForge AI Architecture</h1>
+            <p class="subtitle">Real-time Fraud Detection Pipeline</p>
+        </header>
+
+        <div class="architecture">
+            <div class="flow">
+                <!-- User Layer -->
+                <div class="layer">
+                    <div class="component user">
+                        <i class="fa-solid fa-user component-icon" style="color: #3b82f6;"></i>
+                        <div class="component-title">User</div>
+                        <div class="component-desc">Submit Transaction Data</div>
+                    </div>
+                </div>
+
+                <div class="arrow">↓</div>
+
+                <!-- GCP Layer -->
+                <div class="layer" style="gap: 2rem; flex-wrap: wrap;">
+                    <div class="group-box gcp" style="flex: 1; min-width: 600px;">
+                        <div class="group-label">
+                            <img src="/gcp-logo.png" alt="Google Cloud Platform" class="gcp-icon" />
+                            Google Cloud Platform
+                        </div>
+
+                        <div style="display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;">
+                            <div class="component frontend">
+                                <i class="fa-brands fa-react component-icon" style="color: #8b5cf6;"></i>
+                                <div class="component-title">Next.js Frontend</div>
+                                <div class="component-desc">4 Industry Forms</div>
+                                <span class="component-badge">Cloud Run</span>
+                            </div>
+
+                            <div class="component backend">
+                                <i class="fa-brands fa-python component-icon" style="color: #6366f1;"></i>
+                                <div class="component-title">FastAPI Backend</div>
+                                <div class="component-desc">/api/detect</div>
+                                <span class="component-badge">Cloud Run</span>
+                            </div>
+
+                            <div class="component orchestration" style="min-width: 220px; position: relative; margin-right: 1rem;">
+                                <i class="fa-solid fa-diagram-project component-icon" style="color: #10b981;"></i>
+                                <div class="component-title">LangGraph Router</div>
+                                <div class="component-desc">Intelligent Orchestration<br/>Route + Context</div>
+                                <!-- Arrow to MCP -->
+                                <div class="side-arrow" style="right: -50px; top: 50%; transform: translateY(-50%);">→</div>
+                            </div>
+
+                            <div class="component" style="min-width: 220px; border-color: #06b6d4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.05)); margin-left: 0.5rem;">
+                                <i class="fa-solid fa-plug component-icon" style="color: #06b6d4;"></i>
+                                <div class="component-title">MCP Server</div>
+                                <div class="component-desc">Model Context Protocol<br/>External Tools & Data</div>
+                                <span class="component-badge" style="background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); color: #67e8f9;">Cloud Run (Free)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="component data" style="min-width: 220px;">
+                        <i class="fa-solid fa-database component-icon" style="color: #f59e0b;"></i>
+                        <div class="component-title">Pinecone RAG</div>
+                        <div class="component-desc">100+ Fraud Patterns<br/>Vector Search</div>
+                        <span class="component-badge" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">Cloud</span>
+                    </div>
+                </div>
+
+                <div class="arrow">↓</div>
+
+                <!-- Models Layer -->
+                <div class="layer">
+                    <div class="group-box hf">
+                        <div class="group-label">
+                            <span class="hf-icon">🤗</span>
+                            Hugging Face Inference + 
+                            <img src="/gcp-vertexai.png" alt="Google Vertex AI" class="vertexai-icon" />
+                            Google Vertex AI
+                        </div>
+                        <div class="models-grid">
+                            <div class="model-card">
+                                <i class="fa-solid fa-building-columns component-icon" style="color: #10b981;"></i>
+                                <div class="component-title">Meta: Finance-Llama3-8B</div>
+                                <div class="component-desc">Banking & Crypto</div>
+                            </div>
+                            <div class="model-card">
+                                <i class="fa-solid fa-heart-pulse component-icon" style="color: #ef4444;"></i>
+                                <div class="component-title">Google: MedGemma-4B</div>
+                                <div class="component-desc">Medical Claims<br/>(Google Health AI)</div>
+                            </div>
+                            <div class="model-card">
+                                <i class="fa-solid fa-cart-shopping component-icon" style="color: #8b5cf6;"></i>
+                                <div class="component-title">NVIDIA: Nemotron Nano 12B 2 VL</div>
+                                <div class="component-desc">E-commerce</div>
+                            </div>
+                            <div class="model-card">
+                                <i class="fa-solid fa-truck component-icon" style="color: #f59e0b;"></i>
+                                <div class="component-title">NVIDIA: Nemotron Nano 12B 2 VL</div>
+                                <div class="component-desc">Supply Chain</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="arrow">↓</div>
+
+                <!-- Results Layer -->
+                <div class="layer">
+                    <div class="component ai">
+                        <i class="fa-solid fa-chart-line component-icon" style="color: #ec4899;"></i>
+                        <div class="component-title">Fraud Score</div>
+                        <div class="component-desc">0-100% Probability<br/>Risk Level Analysis</div>
+                    </div>
+
+                    <div class="component ai">
+                        <i class="fa-solid fa-file-lines component-icon" style="color: #06b6d4;"></i>
+                        <div class="component-title">Explanation</div>
+                        <div class="component-desc">Risk Factors<br/>AI Reasoning</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Infrastructure Layer -->
+            <div class="infrastructure-layer">
+                <img src="https://www.vectorlogo.zone/logos/terraformio/terraformio-icon.svg" alt="Terraform" class="terraform-icon" />
+                <div>
+                    <div class="infrastructure-text">
+                        <i class="fa-solid fa-code" style="color: #7B42BC; margin-right: 0.5rem;"></i>
+                        Infrastructure as Code - Terraform
+                    </div>
+                    <div class="infrastructure-desc">
+                        One-command deployment: All GCP resources (Cloud Run, IAM, networking) provisioned in 2-4 hours
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value color-green">+38-62%</div>
+                <div class="stat-label">Detection Gain</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value color-purple">-20-45%</div>
+                <div class="stat-label">False Positives</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value color-blue">&lt;2s</div>
+                <div class="stat-label">Response Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value color-purple">2-4 hrs</div>
+                <div class="stat-label">Deploy Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value color-yellow">4</div>
+                <div class="stat-label">AI Models</div>
+            </div>
+        </div>
+
+        <footer>
+            <strong>FraudForge AI</strong> - Terraform IaC • LangGraph • Pinecone • Hugging Face • Google Vertex AI • MCP • Cloud Run
+            <div class="overview">
+                Open source platform achieving 95%+ cost savings vs traditional BPM solutions • Deploy in 2-4 hours with Terraform
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

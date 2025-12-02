@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Node.js
+node_modules/
+.next/
+out/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-error.log*
+.pnp.*
+.yarn/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+*.env
+
+# Terraform
+infrastructure/.terraform/
+infrastructure/.terraform.lock.hcl
+infrastructure/terraform.tfstate
+infrastructure/terraform.tfstate.*
+infrastructure/*.tfplan
+infrastructure/tfplan
+infrastructure/*.backup
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+
+# Docker
+*.tar
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+.vs/
+
+# ChromaDB
+chroma_db/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*~
+
+# Temporary files
+*.new
+*.old
+*.backup
+.cache/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Testing
+.pytest_cache/
+.tox/
+
+# GCP Service Account Keys (IMPORTANT!)
+*-key.json
+*-credentials.json
+service-account*.json
+
+# Local data
+data/
+*.db
+*.sqlite
+.env
+infrastructure/*.tfvars
+*.tfvars
+.env

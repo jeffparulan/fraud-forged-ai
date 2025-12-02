@@ -1,0 +1,47 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Neon blue to purple gradient -->
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00D4FF;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Strong neon glow effect -->
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Enhanced glow for letter F -->
+    <filter id="letterGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Shield shape with dark interior and neon border -->
+  <path d="M100 20 L160 40 L160 100 C160 140 120 170 100 190 C80 170 40 140 40 100 L40 40 Z" 
+        fill="#0a0a0a" 
+        stroke="url(#shieldGradient)"
+        stroke-width="8"
+        filter="url(#neonGlow)"
+        opacity="1"/>
+  
+  <!-- Letter F - simple, clean, blocky shape -->
+  <g transform="translate(100, 135)">
+    <!-- Simple blocky F: vertical bar + two horizontal bars -->
+    <!-- Vertical bar (left side) -->
+    <rect x="-24" y="-35" width="6" height="50" fill="url(#shieldGradient)" filter="url(#letterGlow)" opacity="1"/>
+    <!-- Top horizontal bar -->
+    <rect x="-24" y="-35" width="28" height="6" fill="url(#shieldGradient)" filter="url(#letterGlow)" opacity="1"/>
+    <!-- Middle horizontal bar -->
+    <rect x="-24" y="-12" width="18" height="6" fill="url(#shieldGradient)" filter="url(#letterGlow)" opacity="1"/>
+  </g>
+</svg>
