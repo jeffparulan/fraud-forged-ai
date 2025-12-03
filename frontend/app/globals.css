@@ -64,3 +64,23 @@ body {
   50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.6); }
 }
 
+/* Mobile banner fix — only targets the hero banner */
+@media (max-width: 768px) {
+  span.px-4.py-2.rounded-full.text-sm.font-semibold.bg-sapphire-500\/20 {
+    font-size: 0.8rem !important;     /* slightly smaller */
+    line-height: 1.4 !important;
+    padding: 10px 16px !important;
+    white-space: normal !important;   /* allows clean wrap */
+    text-align: center !important;
+    display: inline-block !important;
+    max-width: 92vw !important;
+  }
+}
+
+/* Ultra-small phones (iPhone SE, Pixel 5, etc.) */
+@media (max-width: 380px) {
+  span.px-4.py-2.rounded-full.text-sm.font-semibold.bg-sapphire-500\/20 {
+    font-size: 0.72rem !important;
+    padding: 8px 12px !important;
+  }
+}
