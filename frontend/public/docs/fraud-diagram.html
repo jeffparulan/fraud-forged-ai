@@ -16,7 +16,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
             color: #f8fafc;
-            padding: 1.5rem;
+            padding: 1rem;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -31,11 +31,11 @@
 
         header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
             background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -44,7 +44,7 @@
         }
 
         .subtitle {
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
             color: #cbd5e1;
         }
 
@@ -54,15 +54,18 @@
             backdrop-filter: blur(10px);
             border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 1.5rem;
-            padding: 3rem;
+            padding: clamp(1rem, 3vw, 3rem);
             position: relative;
+            overflow: visible;
+            width: 100%;
         }
 
         .flow {
             display: flex;
             flex-direction: column;
-            gap: 3rem;
+            gap: 2rem;
             align-items: center;
+            width: 100%;
         }
 
         .layer {
@@ -70,8 +73,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 2rem;
+            gap: 1rem;
             position: relative;
+            flex-wrap: wrap;
         }
 
         /* Component Cards */
@@ -79,11 +83,12 @@
             background: rgba(255, 255, 255, 0.06);
             border: 3px solid;
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 1rem;
             text-align: center;
             transition: all 0.3s ease;
-            min-width: 180px;
+            min-width: clamp(140px, 30vw, 180px);
             position: relative;
+            flex: 0 1 auto;
         }
 
         .component:hover {
@@ -92,19 +97,19 @@
         }
 
         .component-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: clamp(2rem, 6vw, 3rem);
+            margin-bottom: 0.75rem;
         }
 
         .component-title {
-            font-size: 1.2rem;
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
             font-weight: bold;
             margin-bottom: 0.5rem;
             color: #fff;
         }
 
         .component-desc {
-            font-size: 0.9rem;
+            font-size: clamp(0.75rem, 2.5vw, 0.9rem);
             color: #94a3b8;
             line-height: 1.4;
         }
@@ -124,22 +129,24 @@
         .group-box {
             border: 3px dashed;
             border-radius: 1.5rem;
-            padding: 2rem;
+            padding: clamp(1rem, 3vw, 2rem);
             position: relative;
             display: flex;
-            gap: 2rem;
+            gap: 1rem;
             justify-content: center;
             align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
         }
 
         .group-label {
             position: absolute;
             top: -18px;
-            left: 20px;
+            left: 10px;
             background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
-            padding: 0.5rem 1.2rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 0.75rem;
-            font-size: 1rem;
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -147,6 +154,9 @@
             border: 2px solid;
             z-index: 20;
             white-space: nowrap;
+            max-width: calc(100% - 20px);
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Colors */
@@ -164,17 +174,18 @@
         /* Models Grid */
         .models-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            width: 100%;
         }
 
         .model-card {
             background: rgba(236, 72, 153, 0.1);
             border: 2px solid #ec4899;
             border-radius: 1rem;
-            padding: 1.2rem;
+            padding: 1rem;
             text-align: center;
-            min-width: 160px;
+            min-width: 140px;
         }
 
         /* Arrow */
@@ -201,8 +212,9 @@
 
         /* Stats */
         .stats {
-            display: flex;
-            justify-content: space-around;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
             padding: 1.5rem;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 1rem;
@@ -210,8 +222,8 @@
         }
 
         .stat-item { text-align: center; }
-        .stat-value { font-size: 2rem; font-weight: bold; }
-        .stat-label { font-size: 0.9rem; color: #94a3b8; margin-top: 0.3rem; }
+        .stat-value { font-size: clamp(1.5rem, 5vw, 2rem); font-weight: bold; }
+        .stat-label { font-size: clamp(0.75rem, 2.5vw, 0.9rem); color: #94a3b8; margin-top: 0.3rem; }
 
         .color-green { color: #10b981; }
         .color-blue { color: #3b82f6; }
@@ -320,6 +332,178 @@
             color: #94a3b8;
             margin-top: 0.3rem;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 0.5rem;
+            }
+
+            .architecture {
+                border-radius: 1rem;
+                padding: 0.75rem;
+            }
+
+            .flow {
+                gap: 1rem;
+            }
+
+            .layer {
+                gap: 0.5rem;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .component {
+                min-width: auto;
+                width: 100%;
+                padding: 0.75rem;
+            }
+
+            .group-box {
+                padding: 1rem 0.5rem;
+                border-width: 2px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.75rem;
+            }
+
+            .group-box > div {
+                width: 100%;
+            }
+
+            .group-label {
+                font-size: 0.7rem;
+                padding: 0.25rem 0.5rem;
+                left: 5px;
+                top: -15px;
+            }
+
+            .gcp-icon, .hf-icon, .vertexai-icon {
+                width: 16px;
+                height: 16px;
+                min-width: 16px;
+                min-height: 16px;
+                max-width: 16px;
+                max-height: 16px;
+                font-size: 16px;
+            }
+
+            .terraform-icon {
+                width: 20px;
+                height: 20px;
+            }
+
+            .models-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .model-card {
+                padding: 0.75rem;
+            }
+
+            .side-arrow {
+                display: none;
+            }
+
+            .stats {
+                padding: 1rem;
+                gap: 0.5rem;
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .infrastructure-layer {
+                padding: 1rem;
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .infrastructure-text {
+                font-size: 0.85rem;
+            }
+
+            .infrastructure-desc {
+                font-size: 0.75rem;
+            }
+
+            footer {
+                font-size: 0.8rem;
+            }
+
+            .overview {
+                font-size: 0.75rem;
+            }
+
+            .arrow {
+                font-size: 2rem;
+            }
+
+            .component-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .component-title {
+                font-size: 0.9rem;
+            }
+
+            .component-desc {
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0.25rem;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            .subtitle {
+                font-size: 0.8rem;
+            }
+
+            .architecture {
+                padding: 0.5rem;
+            }
+
+            .component {
+                padding: 0.5rem;
+            }
+
+            .group-box {
+                padding: 0.75rem 0.25rem;
+            }
+
+            .models-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+                padding: 0.75rem;
+            }
+
+            .component-badge {
+                font-size: 0.6rem;
+                padding: 0.15rem 0.4rem;
+            }
+
+            .stat-value {
+                font-size: 1.25rem;
+            }
+
+            .stat-label {
+                font-size: 0.7rem;
+            }
+
+            .arrow {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -344,13 +528,13 @@
 
                 <!-- GCP Layer -->
                 <div class="layer" style="gap: 2rem; flex-wrap: wrap;">
-                    <div class="group-box gcp" style="flex: 1; min-width: 600px;">
+                    <div class="group-box gcp" style="flex: 1; min-width: 300px;">
                         <div class="group-label">
                             <img src="/gcp-logo.png" alt="Google Cloud Platform" class="gcp-icon" />
                             Google Cloud Platform
                         </div>
 
-                        <div style="display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;">
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
                             <div class="component frontend">
                                 <i class="fa-brands fa-react component-icon" style="color: #8b5cf6;"></i>
                                 <div class="component-title">Next.js Frontend</div>
@@ -365,7 +549,7 @@
                                 <span class="component-badge">Cloud Run</span>
                             </div>
 
-                            <div class="component orchestration" style="min-width: 220px; position: relative; margin-right: 1rem;">
+                            <div class="component orchestration" style="min-width: 180px; position: relative;">
                                 <i class="fa-solid fa-diagram-project component-icon" style="color: #10b981;"></i>
                                 <div class="component-title">LangGraph Router</div>
                                 <div class="component-desc">Intelligent Orchestration<br/>Route + Context</div>
@@ -373,7 +557,7 @@
                                 <div class="side-arrow" style="right: -50px; top: 50%; transform: translateY(-50%);">→</div>
                             </div>
 
-                            <div class="component" style="min-width: 220px; border-color: #06b6d4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.05)); margin-left: 0.5rem;">
+                            <div class="component" style="min-width: 180px; border-color: #06b6d4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.05));">
                                 <i class="fa-solid fa-plug component-icon" style="color: #06b6d4;"></i>
                                 <div class="component-title">MCP Server</div>
                                 <div class="component-desc">Model Context Protocol<br/>External Tools & Data</div>
@@ -382,7 +566,7 @@
                         </div>
                     </div>
 
-                    <div class="component data" style="min-width: 220px;">
+                    <div class="component data" style="min-width: 180px;">
                         <i class="fa-solid fa-database component-icon" style="color: #f59e0b;"></i>
                         <div class="component-title">Pinecone RAG</div>
                         <div class="component-desc">100+ Fraud Patterns<br/>Vector Search</div>
