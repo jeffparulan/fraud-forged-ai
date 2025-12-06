@@ -1,8 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: 'standalone',  // This is critical for size reduction
   reactStrictMode: true,
-  // Security headers (OWASP Top 10 protection)
+  
+  // Optimize images
+  images: {
+    unoptimized: true,  // Reduces build size if you're not using next/image optimization
+  },
+  
   async headers() {
     return [
       {
@@ -37,6 +42,22 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=()'
           },
           {
+            key: 'X-Permitted-Cross-Domain-Policies',
+            value: 'none'
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp'
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin'
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-origin'
+          },
+          {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
@@ -48,6 +69,7 @@ const nextConfig = {
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'",
+              "upgrade-insecure-requests"
             ].join('; ')
           }
         ]
