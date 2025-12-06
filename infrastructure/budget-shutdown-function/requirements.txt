@@ -1,0 +1,4 @@
+google-cloud-run==0.10.6
+google-cloud-pubsub==2.18.4
+functions-framework==3.5.0
+protobuf==4.25.1
