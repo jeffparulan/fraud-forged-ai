@@ -356,7 +356,7 @@ export default function Architecture() {
             </h2>
             <div className="relative w-10 h-10 flex items-center justify-center">
               <Image 
-                src="https://www.vectorlogo.zone/logos/terraformio/terraformio-icon.svg" 
+                src="/terraform-icon.svg" 
                 alt="Terraform" 
                 width={40}
                 height={40}

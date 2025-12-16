@@ -1,6 +1,10 @@
 from typing import Dict, Any, TypedDict, Optional
 from langgraph.graph import Graph, StateGraph
-from langchain.schema import HumanMessage, SystemMessage
+try:
+    from langchain_core.messages import HumanMessage, SystemMessage
+except ImportError:
+    # Fallback for older langchain versions
+    from langchain.schema import HumanMessage, SystemMessage
 import json
 import logging
 
