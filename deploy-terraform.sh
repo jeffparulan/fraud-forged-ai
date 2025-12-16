@@ -81,6 +81,13 @@ docker push "$FULL_PATH/fraud-forge-frontend:latest"
 echo -e "${YELLOW}Deploying frontend + full infra...${NC}"
 cd infrastructure
 
+# Check if terraform.tfvars exists, if not use example as template
+if [ ! -f terraform.tfvars ]; then
+    echo -e "${YELLOW}⚠️  terraform.tfvars not found. Using terraform.tfvars.example as reference.${NC}"
+    echo -e "${YELLOW}   You may need to create terraform.tfvars with your actual values.${NC}"
+fi
+
+# Apply with auto-approve (will prompt for variables if terraform.tfvars doesn't exist)
 terraform apply -auto-approve
 
 FRONTEND_URL=$(terraform output -raw frontend_url)

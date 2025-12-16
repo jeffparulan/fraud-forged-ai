@@ -17,11 +17,16 @@ export const metadata: Metadata = {
   // Explicitly set icons with cache-busting version to force browser refresh
   icons: {
     icon: [
-      { url: '/logo.png?v=3', type: 'image/png', sizes: 'any' },
-      { url: '/favicon.ico?v=3', sizes: 'any' },
+      { url: '/icon.png?v=5', type: 'image/png' }, // Next.js auto-generated from app/icon.png
+      { url: '/logo.png?v=5', type: 'image/png', sizes: 'any' },
+      { url: '/favicon.ico?v=5', sizes: 'any' },
     ],
     apple: [
-      { url: '/logo.png?v=3', type: 'image/png' },
+      { url: '/icon.png?v=5', type: 'image/png' },
+      { url: '/logo.png?v=5', type: 'image/png' },
+    ],
+    shortcut: [
+      { url: '/icon.png?v=5', type: 'image/png' },
     ],
   },
   robots: {

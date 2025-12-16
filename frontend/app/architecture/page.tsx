@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Image from 'next/image'
+import Logo from '@/components/Logo'
 import { Database, Cpu, Zap, Shield, GitBranch, Box, Cloud, Lock } from 'lucide-react'
 
 export default function Architecture() {
@@ -34,7 +35,7 @@ export default function Architecture() {
         { name: 'Meta: Finance-Llama3-8B', description: 'Banking & crypto fraud (HF)', color: 'text-yellow-400' },
         { name: 'Google: MedGemma-4B', description: 'Healthcare claims (Vertex AI)', color: 'text-amber-400' },
         { name: 'NVIDIA: Nemotron Nano 12B 2 VL', description: 'E-commerce detection (HF Nebius)', color: 'text-purple-400' },
-        { name: 'NVIDIA: Nemotron Nano 12B 2 VL', description: 'Supply chain fraud (HF Nebius)', color: 'text-orange-400' }
+        { name: 'NVIDIA: Nemotron Nano 12B 2 VL', description: 'Supply chain fraud (HF Nebius)', color: 'text-orange-400', key: 'nemotron-supply-chain' }
       ]
     },
     {
@@ -104,17 +105,7 @@ export default function Architecture() {
           className="text-center mb-16"
         >
           <div className="flex items-center justify-center gap-4 mb-6">
-            <Image
-              src="/logo.png"
-              alt="FraudForge AI"
-              width={64}
-              height={64}
-              className="drop-shadow-lg"
-              priority
-            />
-            <h1 className="text-5xl md:text-6xl font-bold text-white">
-              FraudForge AI
-            </h1>
+            <Logo size={64} showText={true} animated={true} />
           </div>
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
             <span className="gradient-text">Architecture</span>
@@ -179,8 +170,8 @@ export default function Architecture() {
                 </div>
 
                 <div className="space-y-4">
-                  {stack.technologies.map((tech) => (
-                    <div key={tech.name} className="border-l-2 border-white/10 pl-4">
+                  {stack.technologies.map((tech, index) => (
+                    <div key={tech.key || `${tech.name}-${index}`} className="border-l-2 border-white/10 pl-4">
                       <div className={`font-semibold ${tech.color}`}>{tech.name}</div>
                       <div className="text-gray-400 text-sm">{tech.description}</div>
                     </div>
