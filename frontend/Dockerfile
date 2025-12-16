@@ -9,7 +9,9 @@ FROM --platform=linux/amd64 node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+# Copy everything including icon files
 COPY . .
+# Build Next.js (this will process app/icon.png automatically)
 RUN npm run build
 
 # Stage 3: Production - MINIMAL
@@ -22,6 +24,8 @@ ENV NODE_ENV=production
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# Copy app/icon.png for Next.js favicon (Next.js automatically uses app/icon.png)
+COPY --from=builder --chown=nextjs:nodejs /app/app/icon.png ./app/icon.png
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \

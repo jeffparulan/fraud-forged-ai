@@ -97,9 +97,10 @@ service-account*.json
 data/
 *.db
 *.sqlite
-.env
+
+# Terraform variables (contain API keys - NEVER commit!)
+*.tfvars
+*.tfvars.json
 infrastructure/*.tfvars
-*.tfvars
-.env
-*.tfvars
-.env
+!*.tfvars.example
+!terraform.tfvars.example

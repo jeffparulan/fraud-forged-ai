@@ -53,7 +53,7 @@ cd infrastructure
 terraform init -upgrade >/dev/null
 
 terraform apply \
-  -target=google_cloud_run_v2_service.backend \
+  -target=google_cloud_run_service.backend \
   -target=google_cloud_run_service_iam_member.backend_public \
   -auto-approve
 

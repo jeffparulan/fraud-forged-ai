@@ -13,11 +13,15 @@ export const metadata: Metadata = {
   title: 'FraudForge AI - Simplified GenAI Fraud Detection',
   description: 'FraudForgeAI: Simplified GenAI Workflows | Robust AI Guards | Near-Zero Cost Open-Source. Beat BPM Bloat—for Pennies.',
   keywords: 'fraud detection, GenAI, machine learning, fintech, healthcare, ecommerce, supply chain',
+  // Next.js automatically serves app/icon.png as /icon.png
+  // Explicitly set icons with cache-busting version to force browser refresh
   icons: {
     icon: [
-      { url: '/favicon.png', type: 'image/png' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico' },
+      { url: '/logo.png?v=3', type: 'image/png', sizes: 'any' },
+      { url: '/favicon.ico?v=3', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/logo.png?v=3', type: 'image/png' },
     ],
   },
   robots: {

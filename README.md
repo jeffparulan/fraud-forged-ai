@@ -37,9 +37,7 @@ Traditional fraud detection systems cost $2M+ annually and take months to deploy
 
 ### Deploy to Cloud (Production)
 
-**Recommended:** Follow the comprehensive deployment guide:
-
-📖 **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Complete step-by-step instructions
+**Deployment:** See the deployment section below for step-by-step instructions.
 
 **Quick commands:**
 

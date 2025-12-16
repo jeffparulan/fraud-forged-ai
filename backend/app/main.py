@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, Literal
@@ -8,6 +8,8 @@ import logging
 import asyncio
 from threading import Thread
 from contextlib import asynccontextmanager
+import base64
+import json
 
 # Your internal modules
 from .langgraph_router import LangGraphRouter
@@ -20,13 +22,10 @@ from .utils.llm_client import LLMClient
 # ----------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: fire and forget background init
     Thread(target=_initialize_services_background, daemon=True).start()
     yield
-    # Shutdown
     logger.info("Shutting down FraudForge AI...")
     app_state.clear()
-
 
 app = FastAPI(
     title="FraudForge AI",
@@ -35,7 +34,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS — permanently allow all (this is a public demo API)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -49,12 +48,106 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global state
-kill_switch_active = False
 app_state: Dict[str, Any] = {}
 
+# ----------------------------
+# Kill Switch - Controlled by budget Pub/Sub
+# ----------------------------
+KILL_SWITCH_ACTIVE = False
+
+@app.middleware("http")
+async def check_kill_switch(request: Request, call_next):
+    if KILL_SWITCH_ACTIVE and request.url.path not in ["/api/health", "/api/status", "/health", "/"]:
+        raise HTTPException(
+            status_code=503,
+            detail="Service paused: monthly budget limit reached. Contact admin."
+        )
+    response = await call_next(request)
+    return response
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for Docker and load balancers"""
+    return {"status": "healthy", "service": "FraudForge AI Backend"}
+
+@app.get("/health")
+async def health_check_short():
+    """Short health check endpoint"""
+    return {"status": "healthy"}
+
+@app.get("/api/status")
+async def get_status():
+    return {
+        "status": "maintenance" if KILL_SWITCH_ACTIVE else "operational",
+        "message": "Budget limit reached - service paused" if KILL_SWITCH_ACTIVE else "All systems operational"
+    }
 
 # ----------------------------
-# Background Initialization
+# Fraud Detection Endpoint
+# ----------------------------
+class FraudDetectionRequest(BaseModel):
+    sector: Literal["banking", "medical", "ecommerce", "supply_chain"] = Field(
+        ..., description="Industry sector for fraud detection"
+    )
+    data: Dict[str, Any] = Field(..., description="Transaction or claim data to analyze")
+
+@app.post("/api/detect")
+async def detect_fraud(request: FraudDetectionRequest):
+    """
+    Main fraud detection endpoint.
+    Uses LangGraph router with RAG-enhanced LLM analysis.
+    """
+    start_time = time.time()
+    
+    try:
+        # Check if services are initialized
+        if "router" not in app_state:
+            raise HTTPException(
+                status_code=503,
+                detail="Service is still initializing. Please try again in a moment."
+            )
+        
+        router = app_state["router"]
+        
+        # Execute fraud detection workflow
+        result = await router.route_and_analyze(
+            sector=request.sector,
+            data=request.data
+        )
+        
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        
+        return {
+            "fraud_score": result["fraud_score"],
+            "risk_level": result["risk_level"],
+            "explanation": result["explanation"],
+            "model_used": result["model_used"],
+            "processing_time_ms": processing_time_ms,
+            "similar_patterns": result.get("similar_patterns", 0),
+            "risk_factors": result.get("risk_factors", [])
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Fraud detection error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Fraud detection failed: {str(e)}"
+        )
+
+@app.get("/api/models")
+async def get_models():
+    """Get available AI models for each sector"""
+    return {
+        "banking": "Meta: Finance-Llama3-8B",
+        "medical": "Google: MedGemma-4B",
+        "ecommerce": "NVIDIA: Nemotron Nano 12B 2 VL",
+        "supply_chain": "NVIDIA: Nemotron Nano 12B 2 VL"
+    }
+
+# ----------------------------
+# Background Initialization (unchanged)
 # ----------------------------
 def _initialize_services_background():
     global app_state
@@ -74,89 +167,73 @@ def _initialize_services_background():
         logger.info("FraudForge AI ready!")
     except Exception as e:
         logger.error(f"Initialization failed: {e}", exc_info=True)
-        app_state.update({"rag_engine": None, "router": None, "hf_client": None})
 
-
-# ----------------------------
-# Models
-# ----------------------------
-class FraudDetectionRequest(BaseModel):
-    sector: Literal["banking", "medical", "ecommerce", "supply_chain"]
-    data: Dict[str, Any]
-
-class FraudDetectionResponse(BaseModel):
-    fraud_score: float
-    risk_level: str
-    explanation: str
-    model_used: str
-    processing_time_ms: int
-    similar_patterns: Optional[int] = None
 
 
 # ----------------------------
-# Routes
+# BUDGET ALERT HANDLER — This is the new part
+# This function runs when your $5 budget is breached
 # ----------------------------
-@app.get("/")
-async def root():
-    return {"service": "FraudForge AI", "status": "running", "version": "1.0.0"}
+def process_budget_alert(event, context):
+    """Background Cloud Function to be triggered by Pub/Sub budget alerts."""
+    global KILL_SWITCH_ACTIVE
 
-@app.get("/api/health")
-async def health_check():
-    components = {
-        "rag_engine": "ready" if app_state.get("rag_engine") else "initializing",
-        "router": "ready" if app_state.get("router") else "initializing"
-    }
-    return {
-        "status": "healthy",
-        "kill_switch": kill_switch_active,
-        "components": components,
-        "timestamp": time.time()
-    }
+    logger.info(f"Received budget alert event ID: {context.event_id}")
 
-@app.post("/api/detect", response_model=FraudDetectionResponse)
-async def detect_fraud(request: FraudDetectionRequest):
-    if kill_switch_active:
-        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+    # Decode the Pub/Sub message
+    if 'data' not in event:
+        logger.warning("No data in event")
+        return
 
-    # Wait max 60s for router
-    for _ in range(600):
-        if app_state.get("router"):
-            break
-        await asyncio.sleep(0.1)
+    message_data = base64.b64decode(event['data']).decode('utf-8')
+    payload = json.loads(message_data)
+
+    cost = float(payload.get("costAmount", 0))
+    budget = float(payload.get("budgetAmount", 0))
+    threshold = payload.get("alertThresholdExceeded", 0)
+
+    logger.info(f"Budget alert: cost=${cost}, budget=${budget}, threshold={threshold}")
+
+    # Only act when we actually exceed the budget (100%+)
+    if cost >= budget:
+        if not KILL_SWITCH_ACTIVE:
+            logger.warning("BUDGET EXCEEDED → ACTIVATING KILL SWITCH & SCALING CLOUD RUN TO 0")
+            KILL_SWITCH_ACTIVE = True
+
+            # Optional: instantly scale your Cloud Run services to 0 (production only)
+            project_id = os.getenv("PROJECT_ID")
+            region = os.getenv("REGION", "us-central1")
+            backend_service = os.getenv("BACKEND_SERVICE", "fraud-forge-backend")
+
+            # Only try to scale if we're in production (not local-dev)
+            if project_id and project_id != "local-dev":
+                try:
+                    from google.cloud import run_v2
+                    client = run_v2.ServicesClient()
+                    service_name = f"projects/{project_id}/locations/{region}/services/{backend_service}"
+
+                    request = run_v2.UpdateServiceRequest(
+                        service=run_v2.Service(
+                            name=service_name,
+                            template=run_v2.RevisionTemplate(
+                                scaling=run_v2.RevisionScaling(min_instance_count=0)
+                            )
+                        )
+                    )
+                    operation = client.update_service(request)
+                    operation.result()  # wait for completion
+                    logger.info(f"Scaled {backend_service} to 0 instances")
+                except ImportError:
+                    logger.warning("Google Cloud Run client not available (local dev mode)")
+                except Exception as e:
+                    logger.error(f"Failed to scale down Cloud Run: {e}")
+            else:
+                logger.info("Local dev mode - skipping Cloud Run scaling")
+
+        else:
+            logger.info("Kill switch already active")
     else:
-        raise HTTPException(status_code=503, detail="Service still initializing")
-
-    start = time.time()
-    result = await app_state["router"].route_and_analyze(request.sector, request.data)
-    processing_time_ms = int((time.time() - start) * 1000)
-
-    return FraudDetectionResponse(
-        fraud_score=result["fraud_score"],
-        risk_level=result["risk_level"],
-        explanation=result["explanation"],
-        model_used=result["model_used"],
-        processing_time_ms=processing_time_ms,
-        similar_patterns=result.get("similar_patterns")
-    )
-
-@app.get("/api/models")
-async def list_models():
-    return {
-        "banking": {"model": "FinGPT"},
-        "medical": {"model": "MedGemma"},
-        "ecommerce": {"model": "Nemotron Nano"},
-        "audit": {"model": "Phi-3-small-audit-tuned"}
-    }
-
-# Optional: keep your internal kill-switch if you want
-@app.post("/api/internal/killswitch")
-async def toggle_kill_switch(state: Literal["on", "off"], admin_key: str = Query(...)):
-    if admin_key != os.getenv("ADMIN_KEY", "change-this-in-production"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    global kill_switch_active
-    kill_switch_active = (state == "on")
-    return {"status": "success", "kill_switch": kill_switch_active}
-
+        logger.info("Budget alert received but not exceeded yet")
 
 # ----------------------------
 # Local dev only

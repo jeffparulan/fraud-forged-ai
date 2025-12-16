@@ -1,8 +1,9 @@
 steps:
-  # Build the Docker image
+  # Build the Docker image (AMD64 for GCP Cloud Run compatibility)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
+      - '--platform=linux/amd64'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-forge-images/fraud-forge-frontend:$SHORT_SHA'
       - '-t'

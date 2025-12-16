@@ -6,6 +6,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      # Use native platform for local development (better performance on Apple Silicon)
+      # For GCP deployment, use --platform=linux/amd64 in production Dockerfile
     container_name: fraudforge-backend
     ports:
       - "8000:8080"
@@ -19,7 +21,7 @@ services:
     volumes:
       - ./backend/app:/app/app:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/api/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -33,6 +35,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+      # Use native platform for local development
     container_name: fraudforge-frontend
     ports:
       - "3000:3000"
