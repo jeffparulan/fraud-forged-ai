@@ -42,11 +42,12 @@ class LangGraphRouter:
     def __init__(self, rag_engine, hf_client=None):
         self.rag_engine = rag_engine
         self.hf_client = hf_client  # Optional HF client for real inference
+        # Cost-optimized model alignment (HF Pro + OpenRouter FREE)
         self.model_mapping = {
-            "banking": "Finance-Llama3-8B",
-            "medical": "MedGemma-4B (Google Health AI)",
-            "ecommerce": "NVIDIA: Nemotron Nano 12B 2 VL",
-            "supply_chain": "NVIDIA: Nemotron Nano 12B 2 VL"
+            "banking": "Qwen2.5-72B-Instruct (HF Pro)",
+            "medical": "Two-Stage: MedGemma-4B-IT → Qwen2.5-32B (HF Inference API)",
+            "ecommerce": "Nemotron-2 (12B VL) (FREE)",
+            "supply_chain": "Nemotron-2 (12B VL) (FREE)"
         }
         self.workflow = self._build_workflow()
     
@@ -72,7 +73,7 @@ class LangGraphRouter:
     def _route_to_model(self, state: RouterState) -> RouterState:
         """Route to appropriate model based on sector"""
         sector = state["sector"]
-        state["model_name"] = self.model_mapping.get(sector, "NVIDIA: Nemotron Nano 12B 2 VL")
+        state["model_name"] = self.model_mapping.get(sector, "Nemotron-3-Nano-30B (fallback)")
         return state
     
     def _retrieve_rag_context(self, state: RouterState) -> RouterState:
@@ -171,14 +172,15 @@ class LangGraphRouter:
                         use_hf = True
                         logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Both scores low ({rule_based_score:.2f} vs {hf_score:.2f})")
                 
-                # Rule 4: If rule-based is LOW (10-30) → Allow moderate LLM scores (up to 25 points difference)
+                # Rule 4: If rule-based is LOW (10-30) → Trust LLM more (up to 40 points difference)
+                # Rule-based scoring can miss subtle patterns (e.g., order amount vs price, negative reviews)
                 elif rule_based_score < 30:
-                    if score_diff > 25:
-                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Large discrepancy ({score_diff:.2f} points) when rule-based is LOW")
+                    if score_diff > 40:
+                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Extreme discrepancy ({score_diff:.2f} points) when rule-based is LOW - LLM may be hallucinating")
                         use_hf = False
                     else:
                         use_hf = True
-                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Moderate discrepancy ({score_diff:.2f} points) - trusting LLM analysis")
+                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Discrepancy ({score_diff:.2f} points) within tolerance - trusting LLM analysis (may detect patterns rule-based missed)")
                 
                 # Rule 5: If scores differ by more than 20 points (for medium/high rule-based) → REJECT LLM
                 elif score_diff > 20:
@@ -207,6 +209,8 @@ class LangGraphRouter:
             state["fraud_score"] = rule_based_score
             state["risk_level"] = rule_based_risk
             state["risk_factors"] = []
+            # Update model_name to show rule-based was used
+            state["model_name"] = "Rule-Based Scoring (LLM rejected or unavailable)"
             # Mark that we're using rule-based (not LLM)
             state["_analysis_method"] = "rule_based"
             state["_hf_rejected"] = True
@@ -227,6 +231,9 @@ class LangGraphRouter:
             state["risk_level"] = hf_result["risk_level"].lower()
             state["risk_factors"] = hf_result.get("risk_factors", [])
             state["explanation"] = hf_result.get("reasoning", "")
+            # Copy model_used from LLM response (includes fallback info)
+            if "model_used" in hf_result:
+                state["model_name"] = hf_result["model_used"]
             # Mark that we're using validated LLM
             state["_analysis_method"] = "llm_validated"
             state["_hf_rejected"] = False
@@ -501,20 +508,56 @@ class LangGraphRouter:
             score -= 10  # Established sellers are safer
             logger.debug(f"[E-commerce Scoring] Established seller ({seller_age} days): -10 points")
         
-        # Price analysis (too good to be true = scam)
-        price = float(data.get("price", 0))
+        # Price analysis - Check BOTH markups (scams) and discounts (too good to be true)
+        price = float(data.get("listed_price", 0)) or float(data.get("price", 0))
         market_price = float(data.get("market_price", price))
-        if market_price > 0:
-            discount_pct = ((market_price - price) / market_price) * 100
-            if discount_pct > 70:  # More than 70% off
-                score += 50
-            elif discount_pct > 50:  # More than 50% off
-                score += 40
-            elif discount_pct > 30:  # More than 30% off
-                score += 25
-            elif discount_pct < 10:
+        
+        if market_price > 0 and price > 0:
+            # Calculate markup ratio for OVERPRICED items (pricing scams)
+            markup_ratio = price / market_price
+            
+            # CRITICAL: Extreme markup (>10x market price) = Pricing scam
+            if markup_ratio > 10:
+                score += 60  # MAJOR red flag
+                logger.debug(f"[E-commerce Scoring] EXTREME MARKUP: {markup_ratio:.1f}x ({(markup_ratio-1)*100:.0f}%) - PRICING SCAM! +60 points")
+            elif markup_ratio > 5:  # >5x markup
+                score += 45
+                logger.debug(f"[E-commerce Scoring] High markup: {markup_ratio:.1f}x ({(markup_ratio-1)*100:.0f}%) +45 points")
+            elif markup_ratio > 2:  # >2x markup
+                score += 30
+                logger.debug(f"[E-commerce Scoring] Suspicious markup: {markup_ratio:.1f}x ({(markup_ratio-1)*100:.0f}%) +30 points")
+            
+            # Calculate discount for UNDERPRICED items (too good to be true)
+            elif price < market_price:
+                discount_pct = ((market_price - price) / market_price) * 100
+                if discount_pct > 70:  # More than 70% off
+                    score += 50
+                    logger.debug(f"[E-commerce Scoring] Too good to be true: {discount_pct:.0f}% off +50 points")
+                elif discount_pct > 50:  # More than 50% off
+                    score += 40
+                    logger.debug(f"[E-commerce Scoring] Major discount: {discount_pct:.0f}% off +40 points")
+                elif discount_pct > 30:  # More than 30% off
+                    score += 25
+                    logger.debug(f"[E-commerce Scoring] Large discount: {discount_pct:.0f}% off +25 points")
+            
+            # Normal/competitive pricing
+            elif 0.9 <= markup_ratio <= 1.1:  # Within 10% of market price
                 score -= 5  # Normal pricing is good
-                logger.debug(f"[E-commerce Scoring] Competitive pricing ({discount_pct:.1f}% discount): -5 points")
+                logger.debug(f"[E-commerce Scoring] Competitive pricing (within 10% of market): -5 points")
+        
+        # CRITICAL: Check Order Amount vs Listed Price (e.g., $6500 order for $650 product = FRAUD!)
+        order_amount = float(data.get("amount", 0)) or float(data.get("order_amount", 0))
+        if price > 0 and order_amount > price:
+            order_markup_ratio = order_amount / price
+            if order_markup_ratio >= 10.0:  # 10x+ order amount (e.g., $6500 for $650 product)
+                score += 60
+                logger.warning(f"[E-commerce Scoring] 🚨 EXTREME order amount markup ({order_markup_ratio:.1f}x): ${order_amount:.0f} for ${price:.0f} product: +60 points")
+            elif order_markup_ratio >= 5.0:  # 5x+ order amount
+                score += 45
+                logger.warning(f"[E-commerce Scoring] High order amount markup ({order_markup_ratio:.1f}x): ${order_amount:.0f} for ${price:.0f} product: +45 points")
+            elif order_markup_ratio >= 2.0:  # 2x+ order amount
+                score += 30
+                logger.warning(f"[E-commerce Scoring] Suspicious order amount markup ({order_markup_ratio:.1f}x): ${order_amount:.0f} for ${price:.0f} product: +30 points")
         
         # Address mismatch (shipping vs billing) - major red flag
         shipping_address = str(data.get("shipping_address", "")).lower()
@@ -555,23 +598,45 @@ class LangGraphRouter:
             score -= 5  # Verified email reduces risk
             logger.debug(f"[E-commerce Scoring] Email verified: -5 points")
         
-        # Reviews analysis
+        # Reviews analysis (check for negative AND suspicious reviews)
         reviews = data.get("reviews", [])
         review_count = 0
+        
+        # Negative review keywords (scams, fraud, bad quality)
+        negative_keywords = [
+            "bad", "scam", "fraud", "fake", "counterfeit", "poor", "terrible", 
+            "worst", "awful", "never received", "stolen", "illegal", "suspicious",
+            "delays", "never arrived", "defective", "broken", "misleading"
+        ]
+        
         if isinstance(reviews, list):
             review_count = len(reviews)
             if review_count == 0:
                 score += 20
             elif review_count < 5:
                 score += 10
+            
+            # Check for negative reviews
+            negative_count = sum(1 for r in reviews if any(kw in str(r).lower() for kw in negative_keywords))
+            if negative_count > 0:
+                score += min(40, negative_count * 15)  # Each negative review adds 15 points (max 40)
+                logger.warning(f"[E-commerce Scoring] 🚨 {negative_count} negative review(s) detected: +{min(40, negative_count * 15)} points")
+            
             # Check for fake reviews (all perfect, same day, etc.)
-            if review_count > 0 and all("excellent" in str(r).lower() or "5" in str(r) for r in reviews[:5]):
+            elif review_count > 0 and all("excellent" in str(r).lower() or "5" in str(r) for r in reviews[:5]):
                 score += 30  # Suspiciously perfect reviews
                 logger.debug(f"[E-commerce Scoring] Suspiciously perfect reviews: +30 points")
+        
         elif isinstance(reviews, str):
-            # If reviews is a string, try to parse
+            # If reviews is a string, check for negative keywords
             if not reviews or reviews.lower() == "none":
                 score += 20
+            else:
+                reviews_lower = reviews.lower()
+                negative_count = sum(1 for kw in negative_keywords if kw in reviews_lower)
+                if negative_count > 0:
+                    score += min(40, negative_count * 10)  # Each keyword adds 10 points (max 40)
+                    logger.warning(f"[E-commerce Scoring] 🚨 {negative_count} negative keyword(s) in reviews: +{min(40, negative_count * 10)} points")
         
         # Seller verification
         seller_verified = data.get("seller_verified", False)
@@ -919,7 +984,7 @@ def analyze_fraud_rule_based(sector: str, data: Dict[str, Any]) -> Dict[str, Any
     risk_level = router._get_risk_level(fraud_score)
     
     # Generate explanation
-    model_name = router.model_mapping.get(sector, "NVIDIA: Nemotron Nano 12B 2 VL")
+    model_name = router.model_mapping.get(sector, "Nemotron-3-Nano-30B (fallback)")
     reasoning = router._build_explanation(sector, data, fraud_score, risk_level, model_name)
     
     return {

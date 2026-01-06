@@ -18,6 +18,7 @@ services:
       - KILL_SWITCH_ENABLED=false
       - GCP_PROJECT_ID=local-dev
       - PYTHONUNBUFFERED=1
+      - LOG_STAGE1_VERBOSE=${LOG_STAGE1_VERBOSE:-1}
     volumes:
       - ./backend/app:/app/app:ro
     healthcheck:

@@ -252,28 +252,28 @@ export default function Home() {
             {[
               {
                 title: 'Banking & Crypto',
-                model: 'Meta: Finance-Llama3-8B',
+                model: 'Qwen2.5-72B-Instruct (HF Pro)',
                 icon: '🏦',
                 description: 'Velocity anomalies, mule rings, txn graph divergence, wash trading',
                 link: '/detect?sector=banking'
               },
               {
                 title: 'Medical Claims',
-                model: 'Google: MedGemma-4B',
+                model: 'Two-Stage: Google MedGemma-4B-IT → Qwen2.5-72B (HF Inference API)',
                 icon: '🏥',
-                description: 'Upcoding/downcoding, modifier abuse, unbundling, suspect provider behavior',
+                description: 'Clinical validation + fraud detection: Upcoding, unbundling, suspect provider behavior',
                 link: '/detect?sector=medical'
               },
               {
                 title: 'E-commerce',
-                model: 'NVIDIA: Nemotron Nano 12B 2 VL',
+                model: 'NVIDIA Nemotron-2 (12B VL) (OpenRouter)',
                 icon: '🛒',
                 description: 'Return fraud, fake accounts, buyer/seller collusion',
                 link: '/detect?sector=ecommerce'
               },
               {
                 title: 'Supply Chain',
-                model: 'NVIDIA: Nemotron Nano 12B 2 VL',
+                model: 'NVIDIA Nemotron-2 (12B VL) (OpenRouter)',
                 icon: '📦',
                 description: 'Ghost suppliers, kickback schemes, price manipulation',
                 link: '/detect?sector=supply_chain'
@@ -312,10 +312,10 @@ export default function Home() {
               Built with <span className="gradient-text">Modern Stack</span>
             </h2>
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Production-ready AI models from Hugging Face, OpenRouter, and Google Vertex AI • LangGraph orchestration • Pinecone RAG • MCP • FastAPI • Next.js • Terraform
+              Cost-optimized fraud detection with HF Pro & OpenRouter models • LangGraph orchestration • Pinecone RAG • MCP • FastAPI • Next.js • Terraform
             </p>
             <div className="flex flex-wrap justify-center gap-4 mb-8">
-              {['LangGraph', 'Hugging Face', 'OpenRouter AI', 'Google Vertex AI', 'Meta: Finance-Llama3-8B', 'Google: MedGemma-4B', 'NVIDIA: Nemotron Nano 12B 2 VL', 'Pinecone', 'MCP', 'FastAPI', 'Next.js', 'Terraform', 'Cloud Run'].map((tech) => (
+              {['LangGraph', 'HF Pro', 'OpenRouter', 'Qwen2.5-72B', 'Google MedGemma-4B-IT', 'Qwen2.5-72B', 'NVIDIA Nemotron-2 (12B VL)', 'Pinecone', 'MCP', 'FastAPI', 'Next.js', 'Terraform', 'Cloud Run'].map((tech) => (
                 <span key={tech} className="px-4 py-2 bg-sapphire-500/20 text-sapphire-300 rounded-full text-sm font-semibold border border-sapphire-500/30">
                   {tech}
                 </span>

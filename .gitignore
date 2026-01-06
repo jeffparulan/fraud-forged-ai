@@ -104,3 +104,43 @@ data/
 infrastructure/*.tfvars
 !*.tfvars.example
 !terraform.tfvars.example
+
+# Terraform state files (contain sensitive information)
+*.tfstate
+*.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
+infrastructure/terraform.tfstate
+infrastructure/terraform.tfstate.*
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv
+backend/venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# Temporary and backup files
+*.bak
+*.tmp
+*.old
+*.new
+*~
+backend/backend_temp_main.py
+infrastructure/*.bak
+infrastructure/*.zip
+
+# Build artifacts
+*.zip
+dist/
+build/
+*.egg-info/

@@ -138,12 +138,12 @@ async def detect_fraud(request: FraudDetectionRequest):
 
 @app.get("/api/models")
 async def get_models():
-    """Get available AI models for each sector"""
+    """Get available fraud-specialized AI models for each sector (Cost-Optimized 2025)"""
     return {
-        "banking": "Meta: Finance-Llama3-8B",
-        "medical": "Google: MedGemma-4B",
-        "ecommerce": "NVIDIA: Nemotron Nano 12B 2 VL",
-        "supply_chain": "NVIDIA: Nemotron Nano 12B 2 VL"
+        "banking": "Qwen/Qwen2.5-72B-Instruct (HF Pro - Financial Reasoning)",
+        "medical": "Qwen/Qwen2.5-32B-Instruct (HF Pro - Billing Pattern Analysis)",
+        "ecommerce": "Nemotron-2 (12B VL) (FREE - Marketplace Fraud Detection)",
+        "supply_chain": "Nemotron-2 (12B VL) (FREE - Logistics Fraud Detection)"
     }
 
 # ----------------------------

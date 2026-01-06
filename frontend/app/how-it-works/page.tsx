@@ -54,13 +54,13 @@ export default function HowItWorks() {
       number: 4,
       title: 'AI Analyzes Fraud',
       icon: Cpu,
-      description: 'Sector-specific LLM processes input with RAG-enhanced context',
-      technical: 'Hugging Face model evaluates fraud indicators using rule-based scoring + pattern matching',
+      description: 'Cost-optimized fraud-specialized LLM with RAG-enhanced context',
+      technical: 'HF Pro and OpenRouter FREE models evaluate fraud indicators using specialized reasoning',
       models: {
-        banking: 'Meta: Finance-Llama3-8B analyzes amount, location, device, timing, account age',
-        medical: 'Google: MedGemma-4B checks claim amount, procedures, provider history, diagnosis codes',
-        ecommerce: 'NVIDIA: Nemotron Nano 12B 2 VL evaluates seller age, pricing, reviews, shipping',
-        supply_chain: 'NVIDIA: Nemotron Nano 12B 2 VL examines supplier age, price variance, payment terms, documentation'
+        banking: 'Qwen2.5-72B (HF Pro) analyzes amount, location, device, timing, account age with financial reasoning',
+        medical: 'Two-Stage: Google MedGemma-4B-IT validates clinical legitimacy (diagnosis-procedure match), then Qwen2.5-72B analyzes fraud patterns (upcoding, billing behavior)',
+        ecommerce: 'NVIDIA Nemotron-2 (12B VL) (OpenRouter) evaluates seller age, pricing, reviews, shipping with marketplace fraud detection',
+        supply_chain: 'NVIDIA Nemotron-2 (12B VL) (OpenRouter) examines supplier age, price variance, payment terms, documentation with logistics fraud detection'
       },
       color: 'text-sapphire-400'
     },
@@ -73,8 +73,8 @@ export default function HowItWorks() {
       output: {
         fraud_score: 87,
         risk_level: 'high',
-        explanation: 'Meta: Finance-Llama3-8B analysis identifies high risk. Red flags detected: unusually high transaction amount ($15,000), transaction from Nigeria, new or unrecognized device, transaction at 3:00 AM, account age only 2 days.',
-        model_used: 'Meta: Finance-Llama3-8B',
+        explanation: 'Qwen2.5-72B analysis identifies high risk using financial reasoning. Red flags detected: unusually high transaction amount ($15,000), transaction from Nigeria (OFAC high-risk country), new or unrecognized device, transaction at 3:00 AM, account age only 2 days.',
+        model_used: 'Qwen/Qwen2.5-72B-Instruct',
         processing_time_ms: 1847,
         similar_patterns: 5
       },

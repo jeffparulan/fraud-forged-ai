@@ -1,9 +1,27 @@
 # Copy this file to terraform.tfvars and update with your values
+# IMPORTANT: terraform.tfvars is in .gitignore - NEVER commit it with real secrets!
 
-project_id            = "your-gcp-project-id"
-region                = "us-central1"
-app_name              = "fraud-forge"
-enable_public_access  = true
+# Required
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+app_name   = "fraud-forge"
+
+# Optional
+enable_public_access = true
 github_owner          = "your-github-username"
 github_repo           = "fraud-forged-ai"
+billing_account_id    = ""
+notification_channels = []
+environment          = "prod"
+
+# Required API Keys (fill in your actual values - NEVER commit these!)
+huggingface_token = "your-huggingface-token-here"
+openrouter_key    = "your-openrouter-key-here"
+pinecone_api_key  = "your-pinecone-api-key-here"
+pinecone_host     = "your-pinecone-host-here"
+
+# Optional
+medgemma_url       = ""
+gcp_api_key       = ""
+pinecone_index_name = "fraudforge-master"
 

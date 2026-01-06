@@ -32,10 +32,10 @@ export default function Architecture() {
       category: 'AI Models',
       icon: Zap,
       technologies: [
-        { name: 'Meta: Finance-Llama3-8B', description: 'Banking & crypto fraud (HF)', color: 'text-yellow-400' },
-        { name: 'Google: MedGemma-4B', description: 'Healthcare claims (Vertex AI)', color: 'text-amber-400' },
-        { name: 'NVIDIA: Nemotron Nano 12B 2 VL', description: 'E-commerce detection (HF Nebius)', color: 'text-purple-400' },
-        { name: 'NVIDIA: Nemotron Nano 12B 2 VL', description: 'Supply chain fraud (HF Nebius)', color: 'text-orange-400', key: 'nemotron-supply-chain' }
+        { name: 'Qwen2.5-72B-Instruct', description: 'Banking & crypto (HF Pro - Financial Reasoning)', color: 'text-yellow-400' },
+        { name: 'Google MedGemma-4B-IT + Qwen2.5-72B', description: 'Medical (HF Inference API - Two-Stage: Clinical → Fraud)', color: 'text-emerald-400' },
+        { name: 'NVIDIA Nemotron-2 (12B VL)', description: 'E-commerce (OpenRouter - Marketplace Fraud)', color: 'text-purple-400' },
+        { name: 'NVIDIA Nemotron-2 (12B VL)', description: 'Supply chain (OpenRouter - Logistics Fraud)', color: 'text-orange-400', key: 'nemotron-2-supply' }
       ]
     },
     {

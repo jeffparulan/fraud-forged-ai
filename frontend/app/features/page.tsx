@@ -45,12 +45,12 @@ export default function Features() {
     {
       icon: Sparkles,
       title: 'Multi-Industry Support',
-      description: 'Four specialized LLMs for different fraud types',
+      description: 'Four cost-optimized fraud-specialized LLMs',
       details: [
-        'Banking: Meta: Finance-Llama3-8B (HF)',
-        'Healthcare: Google: MedGemma-4B (Vertex AI)',
-        'E-commerce: NVIDIA: Nemotron Nano 12B 2 VL (HF)',
-        'Supply Chain: NVIDIA: Nemotron Nano 12B 2 VL (HF)'
+        'Banking: Qwen2.5-72B-Instruct (HF Pro - Financial Reasoning)',
+        'Healthcare: Two-Stage Pipeline (HF Inference API - Google MedGemma-4B-IT Clinical → Qwen2.5-72B Fraud)',
+        'E-commerce: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Marketplace Fraud Detection)',
+        'Supply Chain: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Logistics Fraud Detection)'
       ],
       color: 'text-pink-400'
     },
@@ -132,7 +132,7 @@ export default function Features() {
     },
     {
       title: 'Multi-Model Inference',
-      description: 'Four specialized AI models from Hugging Face (Meta: Finance-Llama3-8B), (NVIDIA: Nemotron Nano 12B 2 VL), and Google Vertex AI (Google: MedGemma-4B) for domain-specific fraud detection',
+      description: 'Cost-optimized fraud detection using HF Pro (Qwen2.5-72B, Two-Stage Google MedGemma-4B-IT+Qwen2.5-72B) and OpenRouter (NVIDIA Nemotron-2 12B VL) with intelligent fallbacks',
       icon: Cpu
     },
     {

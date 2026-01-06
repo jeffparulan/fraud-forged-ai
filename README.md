@@ -59,10 +59,12 @@ cd ..
 
 - **Frontend**: Next.js 14 with 4 industry-specific fraud detection forms
 - **Backend**: FastAPI + LangGraph intelligent routing + MCP integration
-- **AI Models**:
-  - Banking: Meta Finance-Llama3-8B (Hugging Face)
-  - Medical: Google MedGemma-4B (Vertex AI)
-  - E-commerce/Supply Chain: NVIDIA Nemotron Nano 12B 2 VL (Hugging Face Nebius + OpenRouter fallback)
+- **AI Models** (Cost-Optimized 2025):
+  - Banking: Qwen2.5-72B-Instruct (HF Pro - Financial Reasoning)
+  - Medical: Two-Stage Pipeline (HF Inference API - Google MedGemma-4B-IT for Clinical Validation → Qwen2.5-72B for Fraud Analysis)
+  - E-commerce: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Marketplace Fraud Detection)
+  - Supply Chain: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Logistics Fraud Detection)
+  - Fallbacks: Qwen2.5-72B (HF Pro), NVIDIA Nemotron-3-Nano-30B (OpenRouter), Llama-3.1-70B (OpenRouter)
 - **RAG**: Pinecone cloud vector database with fraud pattern matching
 - **Infrastructure**: Terraform-managed Google Cloud Run (free tier optimized)
 
@@ -71,10 +73,10 @@ cd ..
 ## ✨ Features
 
 ### Multi-Industry Support
-- **🏦 Banking** - Meta Finance-Llama3-8B for transaction analysis
-- **🏥 Medical** - Google MedGemma-4B for healthcare fraud
-- **🛒 E-commerce** - NVIDIA Nemotron Nano 12B 2 VL for online scams
-- **🚚 Supply Chain** - NVIDIA Nemotron Nano 12B 2 VL for compliance fraud
+- **🏦 Banking** - Qwen2.5-72B-Instruct (HF Pro) for transaction analysis with financial reasoning
+- **🏥 Medical** - Two-Stage Pipeline: Google MedGemma-4B-IT validates clinical legitimacy (diagnosis-procedure compatibility), then Qwen2.5-72B analyzes fraud patterns (upcoding, unbundling, billing anomalies)
+- **🛒 E-commerce** - NVIDIA Nemotron-2 (12B VL) (OpenRouter) for online scams with marketplace fraud detection
+- **🚚 Supply Chain** - NVIDIA Nemotron-2 (12B VL) (OpenRouter) for compliance fraud with logistics fraud detection
 
 ### Intelligent Routing
 LangGraph engine automatically:
@@ -223,7 +225,7 @@ Response:
   "fraud_score": 87,
   "risk_level": "high",
   "explanation": "...",
-  "model_used": "Meta: Finance-Llama3-8B"
+  "model_used": "Qwen/Qwen2.5-72B-Instruct"
 }
 ```
 
@@ -243,7 +245,7 @@ See API docs at `http://localhost:8080/docs` for full details.
 - **CORS Protection** - Configured for production domains
 - **API Key Management** - Secure secrets handling via Terraform
 
-See `SECURITY_CHECKLIST.md` for deployment security guidelines.
+See `SECURITY.md` for deployment security guidelines and secrets management.
 
 ## 📄 License
 
@@ -255,5 +257,5 @@ MIT License - Use it, modify it, ship it.
 
 Companies spend $500K-$2M/year on Salesforce Apex, Pega BPM, or IBM Fraud Detection. This project proves you can build your own for ~$50K/year using open-source GenAI and modern cloud infrastructure.
 
-[Architecture Diagram](/docs/fraud-diagram.html) | [Security Checklist](SECURITY_CHECKLIST.md)
+[Architecture Diagram](/docs/fraud-diagram.html) | [Security Guidelines](SECURITY.md)
 

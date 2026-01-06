@@ -32,9 +32,14 @@ def get_comprehensive_patterns():
                 "indicators": ["crypto mixer", "tor network", "burn address", "laundering", "sanctioned wallet"]
             },
             {
-                "description": "Wire transfer to known money laundering destination from high-risk country",
+                "description": "Wire transfer to OFAC sanctioned country or high-risk fraud country (Nigeria, Iran, Russia, etc.)",
                 "risk_level": "critical",
-                "indicators": ["wire transfer", "high-risk country", "sanctions list", "money laundering"]
+                "indicators": ["wire transfer", "ofac sanctioned", "high-risk country", "nigeria", "iran", "russia", "cuba", "north korea", "syria", "sanctions list", "money laundering"]
+            },
+            {
+                "description": "Transaction involving OFAC sanctioned country with VPN and unverified KYC",
+                "risk_level": "critical",
+                "indicators": ["ofac country", "sanctioned country", "vpn", "unverified kyc", "high-risk location", "nigeria", "ghana", "pakistan", "bangladesh"]
             },
             {
                 "description": "Crypto rug pull with new account high-velocity transactions to suspicious wallets",
@@ -43,9 +48,9 @@ def get_comprehensive_patterns():
             },
             # High Risk Patterns
             {
-                "description": "Large transaction from high-risk country using new device at unusual time",
+                "description": "Large transaction from OFAC sanctioned or high-risk fraud country using new device at unusual time",
                 "risk_level": "high",
-                "indicators": ["amount > 10000", "high-risk location", "new device", "unusual time"]
+                "indicators": ["amount > 10000", "ofac country", "high-risk location", "nigeria", "ghana", "pakistan", "russia", "new device", "unusual time"]
             },
             {
                 "description": "Multiple small transactions to different accounts within short timeframe indicating structuring",
@@ -84,9 +89,9 @@ def get_comprehensive_patterns():
                 "indicators": ["crypto", "new payment", "international", "moderate risk"]
             },
             {
-                "description": "Money laundering pattern with moderate transaction velocity from medium-risk location",
+                "description": "Money laundering pattern with moderate transaction velocity from OFAC sanctioned or medium-risk location",
                 "risk_level": "medium",
-                "indicators": ["money laundering", "moderate velocity", "medium-risk location", "suspicious pattern"]
+                "indicators": ["money laundering", "moderate velocity", "ofac country", "medium-risk location", "suspicious pattern"]
             },
             # Low Risk Patterns (Legitimate)
             {
@@ -112,9 +117,14 @@ def get_comprehensive_patterns():
         ],
         "medical": [
             {
-                "description": "High-value claim with multiple unnecessary procedures from flagged provider",
+                "description": "High-value claim with multiple unnecessary procedures from provider in OFAC sanctioned country",
                 "risk_level": "high",
-                "indicators": ["high amount", "excessive procedures", "provider history"]
+                "indicators": ["high amount", "excessive procedures", "provider history", "ofac country", "sanctioned country"]
+            },
+            {
+                "description": "Medical claim from OFAC sanctioned or high-risk fraud country with suspicious billing patterns",
+                "risk_level": "critical",
+                "indicators": ["ofac country", "sanctioned country", "high-risk location", "suspicious billing", "upcoding", "unbundling"]
             },
             {
                 "description": "Billing code mismatch with documented diagnosis",
@@ -170,9 +180,14 @@ def get_comprehensive_patterns():
                 "indicators": ["counterfeit", "brand violation", "unauthorized", "unverified seller", "stock photos"]
             },
             {
-                "description": "Order with shipping and billing address mismatch using VPN IP and unverified email",
+                "description": "Order with shipping and billing address mismatch using VPN IP and unverified email from OFAC sanctioned country",
                 "risk_level": "critical",
-                "indicators": ["address mismatch", "vpn", "unverified email", "high risk payment", "suspicious"]
+                "indicators": ["address mismatch", "vpn", "unverified email", "high risk payment", "ofac country", "nigeria", "ghana", "pakistan", "suspicious"]
+            },
+            {
+                "description": "E-commerce order from OFAC sanctioned or high-risk fraud country with price discrepancy and unverified seller",
+                "risk_level": "critical",
+                "indicators": ["ofac country", "sanctioned country", "nigeria", "ghana", "pakistan", "bangladesh", "price discrepancy", "unverified seller", "below market price"]
             },
             {
                 "description": "New seller offering luxury items 70% below market price with crypto payment and fake reviews",
@@ -181,9 +196,9 @@ def get_comprehensive_patterns():
             },
             # High Risk Patterns
             {
-                "description": "New seller offering luxury items far below market price with no reviews and unverified email",
+                "description": "New seller from OFAC sanctioned country offering luxury items far below market price with no reviews and unverified email",
                 "risk_level": "high",
-                "indicators": ["new seller", "below market", "luxury goods", "no reviews", "unverified email"]
+                "indicators": ["new seller", "ofac country", "below market", "luxury goods", "no reviews", "unverified email", "nigeria", "ghana"]
             },
             {
                 "description": "Order with shipping address different from billing address using gift card payment",
@@ -191,9 +206,9 @@ def get_comprehensive_patterns():
                 "indicators": ["address mismatch", "gift card", "payment method", "shipping billing different"]
             },
             {
-                "description": "Seller with fake reviews pattern and suspicious shipping location with VPN IP address",
+                "description": "Seller with fake reviews pattern and suspicious shipping location from OFAC country with VPN IP address",
                 "risk_level": "high",
-                "indicators": ["fake reviews", "suspicious location", "review pattern", "vpn", "ip address"]
+                "indicators": ["fake reviews", "suspicious location", "ofac country", "review pattern", "vpn", "ip address", "nigeria", "pakistan"]
             },
             {
                 "description": "Product listing with suspiciously perfect reviews all from same day and unverified seller",
@@ -256,9 +271,14 @@ def get_comprehensive_patterns():
         "supply_chain": [
             # Critical Risk Patterns
             {
-                "description": "Ghost supplier with no verifiable business registration requesting advance payment",
+                "description": "Ghost supplier from OFAC sanctioned country with no verifiable business registration requesting advance payment",
                 "risk_level": "critical",
-                "indicators": ["ghost supplier", "no registration", "unverifiable", "advance payment"]
+                "indicators": ["ghost supplier", "ofac country", "sanctioned country", "no registration", "unverifiable", "advance payment", "nigeria", "pakistan", "russia"]
+            },
+            {
+                "description": "Supplier from OFAC sanctioned or high-risk fraud country with price inflation and missing documentation",
+                "risk_level": "critical",
+                "indicators": ["ofac country", "sanctioned country", "high-risk location", "price inflation", "missing documentation", "kickback", "nigeria", "ghana", "pakistan"]
             },
             {
                 "description": "Kickback scheme with purchasing manager personal relationship and inflated prices",
@@ -272,9 +292,9 @@ def get_comprehensive_patterns():
             },
             # High Risk Patterns
             {
-                "description": "New supplier less than 7 days old requesting advance payment with missing documentation",
+                "description": "New supplier from OFAC sanctioned country less than 7 days old requesting advance payment with missing documentation",
                 "risk_level": "high",
-                "indicators": ["new supplier", "advance payment", "missing documentation", "supplier age"]
+                "indicators": ["new supplier", "ofac country", "advance payment", "missing documentation", "supplier age", "nigeria", "ghana"]
             },
             {
                 "description": "Supplier with prices 35% above market rate and quality issues indicating kickback scheme",

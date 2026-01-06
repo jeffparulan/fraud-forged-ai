@@ -43,40 +43,20 @@ resource "google_cloud_run_service" "backend" {
         }
 
         env {
-          name = "OPENROUTER_API_KEY"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.openrouter_key.secret_id
-              key  = "latest"
-            }
-          }
+          name  = "OPENROUTER_API_KEY"
+          value = var.openrouter_key
         }
         env {
-          name = "HUGGINGFACE_API_TOKEN"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.huggingface_token.secret_id
-              key  = "latest"
-            }
-          }
+          name  = "HUGGINGFACE_API_TOKEN"
+          value = var.huggingface_token
         }
         env {
-          name = "PINECONE_API_KEY"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.pinecone_key.secret_id
-              key  = "latest"
-            }
-          }
+          name  = "PINECONE_API_KEY"
+          value = var.pinecone_api_key
         }
         env {
-          name = "PINECONE_INDEX_NAME"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.pinecone_index.secret_id
-              key  = "latest"
-            }
-          }
+          name  = "PINECONE_INDEX_NAME"
+          value = var.pinecone_index_name
         }
         env {
           name  = "PINECONE_HOST"
@@ -104,10 +84,7 @@ resource "google_cloud_run_service" "backend" {
   autogenerate_revision_name = true
 
   depends_on = [
-    google_secret_manager_secret_iam_member.backend_huggingface,
-    google_secret_manager_secret_iam_member.backend_openrouter,
-    google_secret_manager_secret_iam_member.backend_pinecone_key,
-    google_secret_manager_secret_iam_member.backend_pinecone_index
+    google_service_account.fraudforge_backend
   ]
 }
 

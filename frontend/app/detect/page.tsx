@@ -22,7 +22,7 @@ export default function DetectPage() {
       id: 'banking' as Sector,
       name: 'Banking & Crypto',
       icon: Building2,
-      model: 'Meta: Finance-Llama3-8B',
+      model: 'Qwen2.5-72B (HF Pro)',
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/20',
       borderColor: 'border-blue-500/30'
@@ -31,16 +31,16 @@ export default function DetectPage() {
       id: 'medical' as Sector,
       name: 'Medical Claims',
       icon: Heart,
-      model: 'Google: MedGemma-4B',
-      color: 'text-amber-400',
-      bgColor: 'bg-amber-500/20',
-      borderColor: 'border-amber-500/30'
+      model: 'Two-Stage: Google MedGemma → Qwen2.5-72B',
+      color: 'text-emerald-400',
+      bgColor: 'bg-emerald-500/20',
+      borderColor: 'border-emerald-500/30'
     },
     {
       id: 'ecommerce' as Sector,
       name: 'E-commerce',
       icon: ShoppingCart,
-      model: 'NVIDIA: Nemotron Nano 12B 2 VL',
+      model: 'NVIDIA Nemotron-2 (12B VL)',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
       borderColor: 'border-purple-500/30'
@@ -49,7 +49,7 @@ export default function DetectPage() {
       id: 'supply_chain' as Sector,
       name: 'Supply Chain',
       icon: Package,
-      model: 'NVIDIA: Nemotron Nano 12B 2 VL',
+      model: 'NVIDIA Nemotron-2 (12B VL)',
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/20',
       borderColor: 'border-orange-500/30'
