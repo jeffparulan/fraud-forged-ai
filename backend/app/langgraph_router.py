@@ -149,53 +149,72 @@ class LangGraphRouter:
                 
                 score_diff = abs(hf_score - rule_based_score)
                 
-                # IMPROVED VALIDATION RULES - Trust LLM more, especially when rule-based is very low
-                # LLMs can catch subtle patterns that rule-based systems miss
+                # MEDICAL CLAIMS SPECIAL HANDLING: Trust two-stage pipeline more
+                # Medical claims use MedGemma (clinical validation) + Qwen (fraud analysis)
+                # This is more sophisticated than rule-based scoring, which doesn't consider clinical context
+                is_medical = sector == "medical"
                 
-                # Rule 1: If rule-based is VERY LOW (< 10) and LLM is CRITICAL (> 85) → REJECT LLM (extreme mismatch)
-                if rule_based_score < 10 and hf_score > 85:
-                    logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Rule-based VERY LOW ({rule_based_score:.2f}) vs {provider_label} CRITICAL ({hf_score:.2f}) - extreme mismatch")
-                    use_hf = False
-                
-                # Rule 2: If rule-based is HIGH (> 60) and LLM is LOW (< 30) → REJECT LLM (missed high risk)
-                elif rule_based_score > 60 and hf_score < 30:
-                    logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Rule-based HIGH ({rule_based_score:.2f}) vs {provider_label} LOW ({hf_score:.2f}) - LLM missed high risk")
-                    use_hf = False
-                
-                # Rule 3: If rule-based is VERY LOW (< 10) → Trust LLM more (allow up to 40 points difference)
-                # LLMs can detect subtle fraud patterns that simple rules miss
-                elif rule_based_score < 10:
-                    if hf_score > 50:  # Only reject if LLM says it's clearly high risk
-                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Rule-based VERY LOW ({rule_based_score:.2f}), trusting {provider_label} score ({hf_score:.2f}) - LLM may detect subtle patterns")
-                        use_hf = True
-                    else:
-                        use_hf = True
-                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Both scores low ({rule_based_score:.2f} vs {hf_score:.2f})")
-                
-                # Rule 4: If rule-based is LOW (10-30) → Trust LLM more (up to 40 points difference)
-                # Rule-based scoring can miss subtle patterns (e.g., order amount vs price, negative reviews)
-                elif rule_based_score < 30:
-                    if score_diff > 40:
-                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Extreme discrepancy ({score_diff:.2f} points) when rule-based is LOW - LLM may be hallucinating")
+                if is_medical:
+                    # For medical: Trust LLM more - two-stage process includes clinical validation
+                    # Rule-based scoring is too simplistic (only looks at amounts, counts, history)
+                    # Two-stage LLM considers clinical appropriateness + fraud patterns
+                    
+                    # Only reject if extreme mismatch (LLM says LOW when rule-based says CRITICAL)
+                    if rule_based_score > 75 and hf_score < 25:
+                        logger.warning(f"[Validation] ❌ REJECTED {provider_label} (Medical): Rule-based CRITICAL ({rule_based_score:.2f}) vs {provider_label} LOW ({hf_score:.2f}) - extreme mismatch, but trusting rule-based")
                         use_hf = False
+                    # Accept LLM for medical - two-stage process is more reliable
                     else:
                         use_hf = True
-                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Discrepancy ({score_diff:.2f} points) within tolerance - trusting LLM analysis (may detect patterns rule-based missed)")
+                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label} (Medical): Trusting two-stage pipeline ({hf_score:.2f}) over rule-based ({rule_based_score:.2f}) - includes clinical validation")
                 
-                # Rule 5: If scores differ by more than 20 points (for medium/high rule-based) → REJECT LLM
-                elif score_diff > 20:
-                    logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Large discrepancy ({score_diff:.2f} points). Using rule-based for consistency.")
-                    use_hf = False
-                
-                # Rule 6: If risk levels don't match and difference is > 15 points → REJECT LLM
-                elif score_diff > 15 and rule_based_risk != hf_risk:
-                    logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Risk level mismatch ({rule_based_risk} vs {hf_risk}) with {score_diff:.2f} point difference")
-                    use_hf = False
-                
-                # Rule 7: Accept LLM if scores are reasonably close
+                # IMPROVED VALIDATION RULES for other sectors - Trust LLM more, especially when rule-based is very low
+                # LLMs can catch subtle patterns that rule-based systems miss
                 else:
-                    use_hf = True
-                    logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Scores reasonably close ({score_diff:.2f} points), risk levels: {rule_based_risk} vs {hf_risk}")
+                    # Rule 1: If rule-based is VERY LOW (< 10) and LLM is CRITICAL (> 85) → REJECT LLM (extreme mismatch)
+                    if rule_based_score < 10 and hf_score > 85:
+                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Rule-based VERY LOW ({rule_based_score:.2f}) vs {provider_label} CRITICAL ({hf_score:.2f}) - extreme mismatch")
+                        use_hf = False
+                    
+                    # Rule 2: If rule-based is HIGH (> 60) and LLM is LOW (< 30) → REJECT LLM (missed high risk)
+                    elif rule_based_score > 60 and hf_score < 30:
+                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Rule-based HIGH ({rule_based_score:.2f}) vs {provider_label} LOW ({hf_score:.2f}) - LLM missed high risk")
+                        use_hf = False
+                    
+                    # Rule 3: If rule-based is VERY LOW (< 10) → Trust LLM more (allow up to 40 points difference)
+                    # LLMs can detect subtle fraud patterns that simple rules miss
+                    elif rule_based_score < 10:
+                        if hf_score > 50:  # Only reject if LLM says it's clearly high risk
+                            logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Rule-based VERY LOW ({rule_based_score:.2f}), trusting {provider_label} score ({hf_score:.2f}) - LLM may detect subtle patterns")
+                            use_hf = True
+                        else:
+                            use_hf = True
+                            logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Both scores low ({rule_based_score:.2f} vs {hf_score:.2f})")
+                    
+                    # Rule 4: If rule-based is LOW (10-30) → Trust LLM more (up to 40 points difference)
+                    # Rule-based scoring can miss subtle patterns (e.g., order amount vs price, negative reviews)
+                    elif rule_based_score < 30:
+                        if score_diff > 40:
+                            logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Extreme discrepancy ({score_diff:.2f} points) when rule-based is LOW - LLM may be hallucinating")
+                            use_hf = False
+                        else:
+                            use_hf = True
+                            logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Discrepancy ({score_diff:.2f} points) within tolerance - trusting LLM analysis (may detect patterns rule-based missed)")
+                    
+                    # Rule 5: If scores differ by more than 20 points (for medium/high rule-based) → REJECT LLM
+                    elif score_diff > 20:
+                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Large discrepancy ({score_diff:.2f} points). Using rule-based for consistency.")
+                        use_hf = False
+                    
+                    # Rule 6: If risk levels don't match and difference is > 15 points → REJECT LLM
+                    elif score_diff > 15 and rule_based_risk != hf_risk:
+                        logger.warning(f"[Validation] ❌ REJECTED {provider_label}: Risk level mismatch ({rule_based_risk} vs {hf_risk}) with {score_diff:.2f} point difference")
+                        use_hf = False
+                    
+                    # Rule 7: Accept LLM if scores are reasonably close
+                    else:
+                        use_hf = True
+                        logger.info(f"[Validation] ✅ ACCEPTED {provider_label}: Scores reasonably close ({score_diff:.2f} points), risk levels: {rule_based_risk} vs {hf_risk}")
                 
             except Exception as e:
                 # provider_label already defined above
@@ -234,6 +253,9 @@ class LangGraphRouter:
             # Copy model_used from LLM response (includes fallback info)
             if "model_used" in hf_result:
                 state["model_name"] = hf_result["model_used"]
+            # Store clinical score for medical claims (two-stage pipeline)
+            if "clinical_score" in hf_result:
+                state["clinical_score"] = hf_result["clinical_score"]
             # Mark that we're using validated LLM
             state["_analysis_method"] = "llm_validated"
             state["_hf_rejected"] = False
@@ -251,12 +273,50 @@ class LangGraphRouter:
         analysis_method = state.get("_analysis_method", "rule_based")
         
         # TRANSPARENCY: Be honest about which method was used
-        if state.get("explanation") and analysis_method == "hf_validated":
-            # HF-generated explanation - use it as-is but be transparent
+        if state.get("explanation") and analysis_method == "llm_validated":
+            # LLM-generated explanation - enhance it with more context
+            base_explanation = state["explanation"]
+            
+            # For medical claims with two-stage pipeline, add clinical context
+            if sector == "medical" and "Two-Stage" in model_name or "MedGemma" in model_name:
+                # Check if we have clinical score from two-stage process
+                clinical_score = state.get("clinical_score")
+                if clinical_score is not None:
+                    # Add context about clinical validation
+                    clinical_context = f"Clinical validation assessed this claim at {clinical_score}/100 for medical appropriateness. "
+                    if not base_explanation.startswith(clinical_context):
+                        base_explanation = clinical_context + base_explanation
+                
+                # Ensure explanation has sufficient detail
+                if len(base_explanation.split('.')) < 3:
+                    # Add a sentence about the two-stage analysis
+                    enhancement = f" This assessment combines clinical legitimacy validation with fraud pattern analysis to provide a comprehensive risk evaluation."
+                    if enhancement not in base_explanation:
+                        base_explanation += enhancement
+            
+            # For all sectors, ensure explanation has sufficient detail
+            sentences = base_explanation.split('.')
+            if len(sentences) < 2:
+                # Add context about the analysis
+                if sector == "banking":
+                    enhancement = f" This analysis evaluated transaction patterns, account history, and geographic risk factors to determine the fraud probability."
+                elif sector == "ecommerce":
+                    enhancement = f" This analysis examined seller behavior, pricing patterns, and marketplace indicators to assess fraud risk."
+                elif sector == "supply_chain":
+                    enhancement = f" This analysis reviewed supplier credentials, pricing anomalies, and logistics patterns to identify potential fraud."
+                else:
+                    enhancement = f" This analysis evaluated multiple risk factors to determine the fraud probability."
+                
+                if enhancement not in base_explanation:
+                    base_explanation += enhancement
+            
+            # Add model attribution
             prefix = f"{model_name} analysis: "
-            if not state["explanation"].startswith(prefix):
-                state["explanation"] = prefix + state["explanation"]
-            logger.debug(f"[Explanation] Using HF-generated explanation from {model_name}")
+            if not base_explanation.startswith(prefix):
+                state["explanation"] = prefix + base_explanation
+            else:
+                state["explanation"] = base_explanation
+            logger.debug(f"[Explanation] Using enhanced LLM-generated explanation from {model_name}")
         else:
             # Generate rule-based explanation - be transparent about it
             explanation = self._build_explanation(sector, data, fraud_score, risk_level, model_name)
