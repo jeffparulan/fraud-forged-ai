@@ -11,7 +11,7 @@ export function sanitizeString(input: string): string {
   
   // Remove potentially dangerous characters and protocols
   return input
-    .replace(/[<>"'`]/g, '') // Remove <, >, ", ', `
+    .replace(/[<>"'`\\]/g, '') // Remove <, >, ", ', `, \
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
     .replace(/vbscript:/gi, '') // Remove vbscript: protocol

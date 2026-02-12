@@ -293,15 +293,7 @@ class LLMClient:
                     
                     generated_text = response.choices[0].message.content
                     
-                    # Log full response if verbose logging is enabled (for Stage 2)
-                    if LOG_STAGE1_VERBOSE and not is_clinical_stage:
-                        logger.info("=" * 80)
-                        logger.info(f"📥 [Stage 2] FULL RESPONSE FROM {model_name}:")
-                        logger.info("=" * 80)
-                        logger.info(f"{str(generated_text)}")
-                        logger.info("=" * 80)
-                    else:
-                        logger.info(f"✅ HF API success (chat) with {model_name}! Response: {str(generated_text)[:200]}...")
+                    logger.info(f"✅ HF API success (chat) with {model_name}! Response length: {len(str(generated_text))} chars")
                     
                     # Parse the response to extract fraud score and reasoning
                     parsed = parse_model_response(str(generated_text), sector, data, is_clinical_stage=is_clinical_stage)
@@ -578,13 +570,8 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
             if claim_details and str(claim_details).strip() and str(claim_details) != 'No additional notes provided':
                 claim_text += f"\nClaim Details: {claim_details}"
             
-            # Log the prompt request if verbose logging is enabled
-            if LOG_STAGE1_VERBOSE:
-                logger.info("=" * 80)
-                logger.info("📤 [Stage 1] PROMPT REQUEST TO MEDGEMMA SPACE:")
-                logger.info("=" * 80)
-                logger.info(f"{claim_text}")
-                logger.info("=" * 80)
+            # Verbose logging disabled for security (sensitive medical data)
+            logger.info("  → Sending claim data to MedGemma Space")
             
             # Call the space API
             # The Space uses a simple Interface with analyze_claim(claim_text) function
@@ -625,15 +612,7 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
                 result = client.predict(claim_text)
             
             result_str = str(result)
-            logger.info(f"✅ HF Space API success! Response: {result_str[:200]}...")
-            
-            # Log full response if verbose logging is enabled
-            if LOG_STAGE1_VERBOSE:
-                logger.info("=" * 80)
-                logger.info("📥 [Stage 1] FULL RESPONSE FROM MEDGEMMA SPACE:")
-                logger.info("=" * 80)
-                logger.info(f"{result_str}")
-                logger.info("=" * 80)
+            logger.info(f"✅ HF Space API success! Response length: {len(result_str)} chars")
             
             # Check if the Space returned an error (CUDA errors, etc.)
             error_indicators = [
@@ -737,16 +716,6 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         logger.info(f"✅ [Stage 1] Clinical legitimacy score: {clinical_score}/100")
         logger.info(f"   Clinical flags: {len(clinical_flags)}")
         
-        # Log parsed Stage 1 results if verbose logging is enabled
-        if LOG_STAGE1_VERBOSE:
-            logger.info("=" * 80)
-            logger.info("📊 [Stage 1] PARSED RESULTS:")
-            logger.info("=" * 80)
-            logger.info(f"Clinical Score: {clinical_score}/100")
-            logger.info(f"Clinical Reasoning: {clinical_reasoning[:500]}..." if len(clinical_reasoning) > 500 else f"Clinical Reasoning: {clinical_reasoning}")
-            logger.info(f"Clinical Flags: {clinical_flags}")
-            logger.info("=" * 80)
-        
         # ============================================================
         # STAGE 2: FRAUD PATTERN ANALYSIS (Qwen)
         # ============================================================
@@ -755,14 +724,7 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         logger.info(f"   Model: {stage2_config['model']} ({stage2_config['provider']})")
         
         stage2_prompt = build_stage2_fraud_prompt(data, rag_context, clinical_score, clinical_reasoning, clinical_flags)
-        
-        # Log Stage 2 prompt if verbose logging is enabled
-        if LOG_STAGE1_VERBOSE:
-            logger.info("=" * 80)
-            logger.info("📤 [Stage 2] PROMPT REQUEST TO QWEN:")
-            logger.info("=" * 80)
-            logger.info(f"{stage2_prompt}")
-            logger.info("=" * 80)
+        logger.info("  → Sending fraud analysis request to Qwen")
         
         # Try Stage 2 model
         if stage2_config["provider"] == "hf":
@@ -782,17 +744,7 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         fraud_risk_factors = stage2_result.get("risk_factors", [])
         
         logger.info(f"✅ [Stage 2] Final fraud score: {fraud_score}/100 ({get_risk_level(fraud_score)})")
-        
-        # Log parsed Stage 2 results if verbose logging is enabled
-        if LOG_STAGE1_VERBOSE:
-            logger.info("=" * 80)
-            logger.info("📊 [Stage 2] PARSED RESULTS:")
-            logger.info("=" * 80)
-            logger.info(f"Fraud Score: {fraud_score}/100")
-            logger.info(f"Risk Level: {get_risk_level(fraud_score)}")
-            logger.info(f"Fraud Reasoning: {fraud_reasoning[:1000]}..." if len(fraud_reasoning) > 1000 else f"Fraud Reasoning: {fraud_reasoning}")
-            logger.info(f"Fraud Risk Factors: {fraud_risk_factors}")
-            logger.info("=" * 80)
+        logger.info(f"   Risk factors: {len(fraud_risk_factors)}")
         
         # ============================================================
         # COMBINE STAGE 1 + STAGE 2 RESULTS
