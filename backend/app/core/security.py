@@ -26,7 +26,7 @@ def get_secret(secret_name: str, fallback_env_var: Optional[str] = None) -> Opti
     if fallback_env_var:
         env_value = os.getenv(fallback_env_var)
         if env_value:
-            logger.info(f"Using {fallback_env_var} from environment variable")
+            logger.info(f"Using secret from environment variable")
             return env_value
 
     # Try GCP Secret Manager (production only)
@@ -47,14 +47,14 @@ def get_secret(secret_name: str, fallback_env_var: Optional[str] = None) -> Opti
         response = client.access_secret_version(request={"name": name})
         secret_value = response.payload.data.decode('UTF-8')
 
-        logger.info(f"Retrieved {secret_name} from GCP Secret Manager")
+        logger.info(f"Retrieved secret from GCP Secret Manager")
         return secret_value
 
     except ImportError:
-        logger.info("GCP Secret Manager not available (local dev mode) - using environment variables")
+        logger.info("GCP Secret Manager not available (local dev mode)")
         return None
     except Exception as e:
-        logger.warning(f"Could not retrieve secret {secret_name} from GCP: {e}")
+        logger.warning(f"Could not retrieve secret from GCP")
         return None
 
 

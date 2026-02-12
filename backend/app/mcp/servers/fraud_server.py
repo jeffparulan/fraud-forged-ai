@@ -239,8 +239,8 @@ def _search_fraud_patterns(sector: Optional[str], query: Optional[str]) -> Dict[
             "namespace": "rag"
         }
     except Exception as e:
-        logger.error(f"Pinecone search error: {e}", exc_info=True)
-        return {"error": f"Search failed: {str(e)}"}
+        logger.error(f"Pinecone search error")
+        return {"error": "Search failed"}
 
 
 if __name__ == "__main__":
