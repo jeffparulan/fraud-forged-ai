@@ -70,7 +70,7 @@ cd ..
 - **RAG**: Pinecone cloud vector database with fraud pattern matching
 - **Infrastructure**: Terraform-managed Google Cloud Run (free tier optimized)
 
-[**View Interactive Architecture Diagram →**](/docs/fraud-diagram.html)
+[**View Interactive Architecture Diagram →**](https://fraud-forge-frontend-203639324676.us-central1.run.app/docs/fraud-diagram.html)
 
 ## ✨ Features
 
@@ -274,5 +274,5 @@ MIT License - Use it, modify it, ship it.
 
 Companies spend $500K-$2M/year on Salesforce Apex, Pega BPM, or IBM Fraud Detection. This project proves you can build your own for ~$50K/year using open-source GenAI and modern cloud infrastructure.
 
-[Architecture Diagram](/docs/fraud-diagram.html) | [Deployment Guide](DEPLOYMENT_GUIDE.md)
+[Architecture Diagram](https://fraud-forge-frontend-203639324676.us-central1.run.app/docs/fraud-diagram.html) | [Deployment Guide](DEPLOYMENT_GUIDE.md)
 
