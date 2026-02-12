@@ -12,7 +12,7 @@ export function sanitizeString(input: string): string {
   // Remove potentially dangerous characters and protocols
   return input
     .replace(/[<>"'`\\]/g, '') // Remove <, >, ", ', `, \
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
     .replace(/vbscript:/gi, '') // Remove vbscript: protocol
