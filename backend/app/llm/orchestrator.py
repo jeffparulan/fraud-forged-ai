@@ -714,9 +714,6 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         clinical_reasoning = stage1_result.get("reasoning", "Clinical validation completed.")
         clinical_flags = stage1_result.get("risk_factors", [])
         
-        # Avoid logging sensitive clinical data - use debug for diagnostics only
-        logger.debug(f"[Stage 1] Clinical legitimacy score: {clinical_score}/100, flags: {len(clinical_flags)}")
-        
         # ============================================================
         # STAGE 2: FRAUD PATTERN ANALYSIS (Qwen)
         # ============================================================
@@ -743,9 +740,6 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         fraud_score = stage2_result.get("fraud_score", 50)
         fraud_reasoning = stage2_result.get("reasoning", "Fraud analysis completed.")
         fraud_risk_factors = stage2_result.get("risk_factors", [])
-        
-        # Avoid logging sensitive fraud analysis data - use debug for diagnostics only
-        logger.debug(f"[Stage 2] Final fraud score: {fraud_score}/100 ({get_risk_level(fraud_score)}), risk factors: {len(fraud_risk_factors)}")
         
         # ============================================================
         # COMBINE STAGE 1 + STAGE 2 RESULTS
