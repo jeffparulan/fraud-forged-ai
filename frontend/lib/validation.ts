@@ -17,7 +17,8 @@ export function sanitizeString(input: string): string {
     .replace(/data:/gi, '') // Remove data: protocol
     .replace(/vbscript:/gi, '') // Remove vbscript: protocol
     .replace(/file:/gi, '') // Remove file: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .replace(/on\w+=/gi, '') // Remove event handlers (no spaces)
+    .replace(/on\s+\w+=/gi, '') // Remove event handlers (with spaces)
     .trim()
     .slice(0, 10000) // Max length limit
 }
