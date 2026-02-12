@@ -140,14 +140,21 @@ fraud-forged-ai/
 │   ├── components/       # React components
 │   └── lib/             # Utilities
 ├── backend/              # FastAPI application
-│   ├── app/             # Main application code
+│   ├── app/
+│   │   ├── core/        # Core business logic
+│   │   │   ├── router.py         # LangGraph orchestration
+│   │   │   ├── rag_engine.py     # RAG engine
+│   │   │   ├── validation.py     # LLM validation
+│   │   │   └── explanations.py   # Explanation generation
+│   │   ├── llm/         # LLM integration (chains, prompts, providers)
+│   │   ├── mcp/         # Model Context Protocol
+│   │   └── api/         # FastAPI endpoints
 │   └── requirements.txt
 ├── infrastructure/       # Terraform configs
-│   ├── main.tf
-│   ├── variables.tf
-│   └── terraform.tfvars.example
 └── deploy-terraform.sh  # Deployment script
 ```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details.
 
 ## 🎨 How It Works
 

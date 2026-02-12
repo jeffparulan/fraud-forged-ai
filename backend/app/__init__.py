@@ -1,2 +1,0 @@
-# FraudForge AI Backend
-
