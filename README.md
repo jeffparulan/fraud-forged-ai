@@ -59,40 +59,54 @@ cd ..
 
 **Next.js Frontend** → **FastAPI Backend** → **LangGraph Router** → **Multi-Provider LLMs** → **Pinecone RAG** → **Fraud Score**
 
+### Components
 - **Frontend**: Next.js 14 with 4 industry-specific fraud detection forms
 - **Backend**: FastAPI + LangGraph intelligent routing + MCP integration
-- **AI Models** (Cost-Optimized 2025):
-  - Banking: Qwen2.5-72B-Instruct (HF Pro - Financial Reasoning)
-  - Medical: Two-Stage Pipeline (HF Inference API - Google MedGemma-4B-IT for Clinical Validation → Qwen2.5-72B for Fraud Analysis)
-  - E-commerce: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Marketplace Fraud Detection)
-  - Supply Chain: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Logistics Fraud Detection)
-  - Fallbacks: Qwen2.5-72B (HF Pro), NVIDIA Nemotron-3-Nano-30B (OpenRouter), Llama-3.1-70B (OpenRouter)
 - **RAG**: Pinecone cloud vector database with fraud pattern matching
 - **Infrastructure**: Terraform-managed Google Cloud Run (free tier optimized)
+
+### AI Models (Cost-Optimized 2025)
+
+| Sector | Model | Provider | Purpose |
+|--------|-------|----------|----------|
+| Banking | Qwen2.5-72B-Instruct | HF Pro | Financial reasoning |
+| Medical | MedGemma-4B-IT → Qwen2.5-72B | HF Inference | Clinical validation → Fraud analysis |
+| E-commerce | NVIDIA Nemotron-2 (12B VL) | OpenRouter | Marketplace fraud detection |
+| Supply Chain | NVIDIA Nemotron-2 (12B VL) | OpenRouter | Logistics fraud detection |
+
+**Fallbacks**: Qwen2.5-72B (HF Pro), NVIDIA Nemotron-3-Nano-30B (OpenRouter), Llama-3.1-70B (OpenRouter)
 
 [**View Interactive Architecture Diagram →**](https://fraud-forge-frontend-203639324676.us-central1.run.app/docs/fraud-diagram.html)
 
 ## ✨ Features
 
 ### Multi-Industry Support
-- **🏦 Banking** - Qwen2.5-72B-Instruct (HF Pro) for transaction analysis with financial reasoning
-- **🏥 Medical** - Two-Stage Pipeline: Google MedGemma-4B-IT validates clinical legitimacy (diagnosis-procedure compatibility), then Qwen2.5-72B analyzes fraud patterns (upcoding, unbundling, billing anomalies)
-- **🛒 E-commerce** - NVIDIA Nemotron-2 (12B VL) (OpenRouter) for online scams with marketplace fraud detection
-- **🚚 Supply Chain** - NVIDIA Nemotron-2 (12B VL) (OpenRouter) for compliance fraud with logistics fraud detection
+
+| Industry | Model | Capability |
+|----------|-------|------------|
+| 🏦 Banking | Qwen2.5-72B-Instruct (HF Pro) | Transaction analysis with financial reasoning |
+| 🏥 Medical | MedGemma-4B-IT → Qwen2.5-72B | Clinical validation + fraud pattern detection |
+| 🛒 E-commerce | NVIDIA Nemotron-2 (12B VL) | Marketplace fraud detection |
+| 🚚 Supply Chain | NVIDIA Nemotron-2 (12B VL) | Logistics compliance fraud detection |
 
 ### Intelligent Routing
-LangGraph engine automatically:
-1. Analyzes input sector and context
-2. Routes to optimal domain-specific LLM
-3. Queries Pinecone for similar fraud patterns
-4. Generates 0-100% fraud score with explanation
-5. Returns results in <2 seconds
+
+| Step | Action |
+|------|--------|
+| 1 | Analyze input sector and context |
+| 2 | Route to optimal domain-specific LLM |
+| 3 | Query Pinecone for similar fraud patterns |
+| 4 | Generate 0-100% fraud score with explanation |
+| 5 | Return results in <2 seconds |
 
 ### Cost-Optimized Operations
-- **Auto-Scaling** - Scales to zero when idle (free tier compatible)
-- **No BPM Licenses** - Eliminate $2M+ annual platform licensing costs
-- **IAP Authentication** - Built-in Google Cloud access control
-- **Serverless** - Pay only for actual usage
+
+| Feature | Benefit |
+|---------|----------|
+| Auto-Scaling | Scales to zero when idle (free tier compatible) |
+| No BPM Licenses | Eliminate $2M+ annual platform licensing costs |
+| IAP Authentication | Built-in Google Cloud access control |
+| Serverless | Pay only for actual usage |
 
 ## 📊 Use Cases
 
@@ -113,23 +127,32 @@ LangGraph engine automatically:
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Next.js 14** - React SSR with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Sapphire Nightfall Whisper theme
-- **Framer Motion** - Smooth animations
+
+| Technology | Purpose |
+|------------|----------|
+| Next.js 14 | React SSR with App Router |
+| TypeScript | Type-safe development |
+| Tailwind CSS | Sapphire Nightfall Whisper theme |
+| Framer Motion | Smooth animations |
 
 ### Backend
-- **FastAPI** - High-performance Python API
-- **LangGraph** - AI workflow orchestration
-- **Pinecone** - Cloud vector database for RAG
-- **Multi-Provider LLM** - Hugging Face, OpenRouter, Vertex AI
+
+| Technology | Purpose |
+|------------|----------|
+| FastAPI | High-performance Python API |
+| LangGraph | AI workflow orchestration |
+| Pinecone | Cloud vector database for RAG |
+| Multi-Provider LLM | Hugging Face, OpenRouter, Vertex AI |
 
 ### Infrastructure
-- **Terraform** - Infrastructure as Code
-- **Google Cloud Run** - Serverless container platform
-- **Identity-Aware Proxy** - Zero-cost authentication
-- **Cloud Build** - CI/CD pipeline
-- **Docker** - Local development and deployment
+
+| Technology | Purpose |
+|------------|----------|
+| Terraform | Infrastructure as Code |
+| Google Cloud Run | Serverless container platform |
+| Identity-Aware Proxy | Zero-cost authentication |
+| Cloud Build | CI/CD pipeline |
+| Docker | Local development and deployment |
 
 ## 📦 Project Structure
 
@@ -158,12 +181,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details.
 
 ## 🎨 How It Works
 
-1. **User Input** - Submit transaction/claim through industry-specific form
-2. **LangGraph Routing** - Routes to optimal sector-specific LLM
-3. **RAG Enhancement** - Pinecone retrieves similar fraud patterns
-4. **AI Analysis** - LLM processes input with context
-5. **Score Generation** - Returns 0-100% fraud score with explanation
-6. **Response** - Complete analysis in <2 seconds
+| Step | Description |
+|------|-------------|
+| 1. User Input | Submit transaction/claim through industry-specific form |
+| 2. LangGraph Routing | Routes to optimal sector-specific LLM |
+| 3. RAG Enhancement | Pinecone retrieves similar fraud patterns |
+| 4. AI Analysis | LLM processes input with context |
+| 5. Score Generation | Returns 0-100% fraud score with explanation |
+| 6. Response | Complete analysis in <2 seconds |
 
 ## 🔧 Configuration
 
@@ -250,17 +275,21 @@ See API docs at `http://localhost:8080/docs` for full details.
 
 ## 📈 Performance
 
-- **Response Time**: <2 seconds (warm requests)
-- **Cold Start**: ~3-4 seconds (first request after idle)
-- **Auto-Scaling**: Handles 100+ concurrent users
-- **Cost**: Free tier compatible, scales as needed
+| Metric | Value |
+|--------|-------|
+| Response Time | <2 seconds (warm requests) |
+| Cold Start | ~3-4 seconds (first request after idle) |
+| Auto-Scaling | Handles 100+ concurrent users |
+| Cost | Free tier compatible, scales as needed |
 
 ## 🔒 Security
 
-- **IAP Authentication** - Google Cloud Identity-Aware Proxy
-- **No Data Persistence** - All data processed in-memory
-- **CORS Protection** - Configured for production domains
-- **API Key Management** - Secure secrets handling via Terraform
+| Feature | Description |
+|---------|-------------|
+| IAP Authentication | Google Cloud Identity-Aware Proxy |
+| No Data Persistence | All data processed in-memory |
+| CORS Protection | Configured for production domains |
+| API Key Management | Secure secrets handling via Terraform |
 
 See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for deployment security and secrets management.
 
