@@ -8,23 +8,30 @@ export function sanitizeString(input: string): string {
   if (typeof input !== 'string') {
     return ''
   }
-  
-  // Remove potentially dangerous characters and protocols
+
+  // Remove dangerous chars first (single-char replacements are safe)
   let sanitized = input
     .replace(/[<>"'`\\]/g, '') // Remove <, >, ", ', `, \
     .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/data:/gi, '') // Remove data: protocol
-    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-    .replace(/file:/gi, '') // Remove file: protocol
-  
-  // Remove event handlers repeatedly until none remain
-  let previous
+
+  // Multi-char replacements: loop until no new matches (CodeQL: incomplete-multi-character-sanitization)
+  // e.g. "javascriptavascript:" → "javascript:" after one pass, so we must repeat
+  const multiCharPatterns = [
+    /javascript:/gi,
+    /data:/gi,
+    /vbscript:/gi,
+    /file:/gi,
+    /on\w+=/gi, // onclick=, onload=, etc.
+    /on\s+\w+=/gi, // on click=, on load=, etc.
+  ]
+  let previous: string
   do {
     previous = sanitized
-    sanitized = sanitized.replace(/on\w+=/gi, '').replace(/on\s+\w+=/gi, '')
+    for (const pattern of multiCharPatterns) {
+      sanitized = sanitized.replace(pattern, '')
+    }
   } while (sanitized !== previous)
-  
+
   return sanitized.trim().slice(0, 10000) // Max length limit
 }
 
