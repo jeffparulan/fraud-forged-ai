@@ -1,8 +1,6 @@
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, Literal
-import time
+from typing import Dict, Any
 import os
 import logging
 import asyncio
@@ -11,10 +9,9 @@ import base64
 import json
 
 # Your internal modules
-from .langgraph_router import LangGraphRouter
-from .rag_engine import RAGEngine
+from .core import LangGraphRouter, RAGEngine
 from .core.security import get_huggingface_token
-from .utils.llm_client import LLMClient
+from .llm.orchestrator import LLMClient
 
 # ----------------------------
 # FastAPI App + Lifespan
@@ -25,6 +22,7 @@ async def lifespan(app: FastAPI):
     # Cloud Run sends traffic as soon as port is open; init takes ~60-90s (Pinecone)
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _initialize_services_sync)
+    api_deps.set_app_state(app_state)
     yield
     logger.info("Shutting down FraudForge AI...")
     app_state.clear()
@@ -55,11 +53,11 @@ app_state: Dict[str, Any] = {}
 # ----------------------------
 # Kill Switch - Controlled by budget Pub/Sub
 # ----------------------------
-KILL_SWITCH_ACTIVE = False
+from .api import deps as api_deps
 
 @app.middleware("http")
 async def check_kill_switch(request: Request, call_next):
-    if KILL_SWITCH_ACTIVE and request.url.path not in ["/api/health", "/api/status", "/health", "/"]:
+    if api_deps.KILL_SWITCH_ACTIVE and request.url.path not in ["/api/health", "/api/status", "/health", "/"]:
         raise HTTPException(
             status_code=503,
             detail="Service paused: monthly budget limit reached. Contact admin."
@@ -67,86 +65,19 @@ async def check_kill_switch(request: Request, call_next):
     response = await call_next(request)
     return response
 
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint for Docker and load balancers"""
-    return {"status": "healthy", "service": "FraudForge AI Backend"}
+# Include API routes from api/v1
+from .api.v1.router import api_router
+app.include_router(api_router, prefix="/api")
+
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {"service": "FraudForge AI", "docs": "/docs"}
 
 @app.get("/health")
 async def health_check_short():
-    """Short health check endpoint"""
+    """Short health check endpoint for load balancers."""
     return {"status": "healthy"}
-
-@app.get("/api/status")
-async def get_status():
-    return {
-        "status": "maintenance" if KILL_SWITCH_ACTIVE else "operational",
-        "message": "Budget limit reached - service paused" if KILL_SWITCH_ACTIVE else "All systems operational"
-    }
-
-# ----------------------------
-# Fraud Detection Endpoint
-# ----------------------------
-class FraudDetectionRequest(BaseModel):
-    sector: Literal["banking", "medical", "ecommerce", "supply_chain"] = Field(
-        ..., description="Industry sector for fraud detection"
-    )
-    data: Dict[str, Any] = Field(..., description="Transaction or claim data to analyze")
-
-@app.post("/api/detect")
-async def detect_fraud(request: FraudDetectionRequest):
-    """
-    Main fraud detection endpoint.
-    Uses LangGraph router with RAG-enhanced LLM analysis.
-    """
-    start_time = time.time()
-    
-    try:
-        # Check if services are initialized
-        if "router" not in app_state:
-            raise HTTPException(
-                status_code=503,
-                detail="Service is still initializing. Please try again in a moment."
-            )
-        
-        router = app_state["router"]
-        
-        # Execute fraud detection workflow
-        result = await router.route_and_analyze(
-            sector=request.sector,
-            data=request.data
-        )
-        
-        processing_time_ms = int((time.time() - start_time) * 1000)
-        
-        return {
-            "fraud_score": result["fraud_score"],
-            "risk_level": result["risk_level"],
-            "explanation": result["explanation"],
-            "model_used": result["model_used"],
-            "processing_time_ms": processing_time_ms,
-            "similar_patterns": result.get("similar_patterns", 0),
-            "risk_factors": result.get("risk_factors", [])
-        }
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Fraud detection error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Fraud detection failed: {str(e)}"
-        )
-
-@app.get("/api/models")
-async def get_models():
-    """Get available fraud-specialized AI models for each sector (Cost-Optimized 2025)"""
-    return {
-        "banking": "Qwen/Qwen2.5-72B-Instruct (HF Pro - Financial Reasoning)",
-        "medical": "Qwen/Qwen2.5-32B-Instruct (HF Pro - Billing Pattern Analysis)",
-        "ecommerce": "Nemotron-2 (12B VL) (FREE - Marketplace Fraud Detection)",
-        "supply_chain": "Nemotron-2 (12B VL) (FREE - Logistics Fraud Detection)"
-    }
 
 # ----------------------------
 # Service Initialization (runs at startup, blocks until ready)
@@ -178,8 +109,6 @@ def _initialize_services_sync():
 # ----------------------------
 def process_budget_alert(event, context):
     """Background Cloud Function to be triggered by Pub/Sub budget alerts."""
-    global KILL_SWITCH_ACTIVE
-
     logger.info(f"Received budget alert event ID: {context.event_id}")
 
     # Decode the Pub/Sub message
@@ -198,9 +127,9 @@ def process_budget_alert(event, context):
 
     # Only act when we actually exceed the budget (100%+)
     if cost >= budget:
-        if not KILL_SWITCH_ACTIVE:
+        if not api_deps.KILL_SWITCH_ACTIVE:
             logger.warning("BUDGET EXCEEDED → ACTIVATING KILL SWITCH & SCALING CLOUD RUN TO 0")
-            KILL_SWITCH_ACTIVE = True
+            api_deps.set_kill_switch(True)
 
             # Optional: instantly scale your Cloud Run services to 0 (production only)
             project_id = os.getenv("PROJECT_ID")
