@@ -17,6 +17,24 @@ REPO="fraud-forge-images"
 LOCATION="us-central1"
 FULL_PATH="$LOCATION-docker.pkg.dev/$PROJECT_ID/$REPO"
 
+# Load .env for Terraform vars (tokens) - single source of truth
+if [ -f .env ]; then
+  echo -e "${GREEN}Loading tokens from .env${NC}"
+  set -a
+  source .env
+  set +a
+  # Map .env vars to Terraform TF_VAR_* (Terraform auto-picks these up)
+  export TF_VAR_project_id="${GCP_PROJECT_ID:-$PROJECT_ID}"
+  export TF_VAR_huggingface_token="${HUGGINGFACE_API_TOKEN:-}"
+  export TF_VAR_openrouter_key="${OPENROUTER_API_KEY:-}"
+  export TF_VAR_pinecone_api_key="${PINECONE_API_KEY:-}"
+  export TF_VAR_pinecone_index_name="${PINECONE_INDEX_NAME:-fraudforge-master}"
+  export TF_VAR_pinecone_host="${PINECONE_HOST:-}"
+else
+  echo -e "${YELLOW}No .env found - using terraform.tfvars for tokens${NC}"
+  export TF_VAR_project_id="$PROJECT_ID"
+fi
+
 gcloud config set project "$PROJECT_ID" >/dev/null
 
 # ----------------------------
@@ -30,12 +48,23 @@ done
 # ENSURE ARTIFACT REGISTRY REPO
 # ----------------------------
 echo -e "${YELLOW}Ensuring Artifact Registry repo exists...${NC}"
-gcloud artifacts repositories create "$REPO" \
-  --repository-format=docker \
-  --location="$LOCATION" \
-  --quiet 2>/dev/null || true
+if ! gcloud artifacts repositories describe "$REPO" --location="$LOCATION" &>/dev/null; then
+  gcloud artifacts repositories create "$REPO" \
+    --repository-format=docker \
+    --location="$LOCATION" \
+    --quiet
+else
+  echo -e "${GREEN}Repo $REPO already exists${NC}"
+fi
 
-gcloud auth configure-docker "$LOCATION-docker.pkg.dev" --quiet
+# Skip configure-docker if already set up (avoids slow/hanging gcloud call)
+REGISTRY="$LOCATION-docker.pkg.dev"
+if grep -q "\"$REGISTRY\"" ~/.docker/config.json 2>/dev/null; then
+  echo -e "${GREEN}Docker already configured for $REGISTRY${NC}"
+else
+  echo -e "${YELLOW}Configuring Docker for Artifact Registry...${NC}"
+  gcloud auth configure-docker "$REGISTRY" --quiet
+fi
 
 # ----------------------------
 # STEP 1: BUILD & PUSH BACKEND ONLY

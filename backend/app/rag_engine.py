@@ -95,7 +95,7 @@ class RAGEngine:
         
         try:
             # Try to use Hugging Face inference API for embeddings
-            from app.utils.llm_client import get_huggingface_token
+            from app.core.security import get_huggingface_token
             import httpx
             
             hf_token = get_huggingface_token()

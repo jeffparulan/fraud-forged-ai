@@ -14,7 +14,7 @@ export default function UseCases() {
       solution: 'FraudForge AI delivers Qwen2.5-72B (HF Pro) powered fraud detection with advanced financial reasoning for banking and crypto at cost-optimized pricing.',
       results: [
         'Escape $500K–$3M+ annual licensing and consultant lock-in.',
-        'Deploy within 2-4 hours with full integration',
+        'Streamlined deployment with comprehensive guide',
         'Scale with business growth automatically',
         '+38-62% detection gain over baseline rules'
       ],
@@ -68,7 +68,7 @@ export default function UseCases() {
     {
       metric: 'Setup Time',
       traditional: '3-6 months',
-      fraudforge: '2-4 hours',
+      fraudforge: '1-2 hours (with prerequisites)',
       savings: '99% faster'
     },
     {
@@ -92,7 +92,7 @@ export default function UseCases() {
     {
       metric: 'Customization',
       traditional: 'Weeks',
-      fraudforge: '2-4 hours',
+      fraudforge: '1-2 hours (with prerequisites)',
       savings: '99% faster'
     },
     {

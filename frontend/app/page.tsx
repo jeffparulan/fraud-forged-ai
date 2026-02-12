@@ -38,7 +38,7 @@ export default function Home() {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Open-source GenAI fraud detection that deploys in 2-4 hours and replaces million-dollar enterprise platforms.
+              Open-source GenAI fraud detection with streamlined deployment and detailed guides, replacing million-dollar enterprise platforms.
             </p>
 
             <p className="text-lg text-gray-400 mb-12 max-w-2xl mx-auto">
@@ -193,7 +193,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-sapphire-500">✓</span>
-                  <span>100% traceable, regulator-ready reasoning</span>
+                  <span>Comprehensive audit logs and reasoning chains (see <a href="/traceability" className="underline">Traceability</a>)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-sapphire-500">✓</span>

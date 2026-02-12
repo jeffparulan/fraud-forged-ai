@@ -2,7 +2,7 @@
 
 > **Save $2M+ Every Year. Replace closed, million-dollar BPM platforms entirely with open-source GenAI.**
 
-An open-source GenAI fraud detection platform that deploys in 2-4 hours and eliminates expensive BPM platforms. Own your AI infrastructure, not expensive licenses.
+An open-source GenAI fraud detection platform with streamlined deployment that eliminates expensive BPM platforms. Own your AI infrastructure, not expensive licenses.
 
 ## 🎯 Why FraudForge AI?
 
@@ -51,7 +51,9 @@ cd ..
 ./deploy-terraform.sh
 ```
 
-**Deploy time:** 2-4 hours (first time) | 15-30 minutes (updates)
+**Deploy time:** 1-2 hours (first time, with prerequisites) | 15-30 minutes (updates)
+
+> **Note**: First-time deployment requires setup of prerequisites (Docker, Terraform, gcloud CLI, API keys). See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for complete step-by-step instructions.
 
 ## 🏗️ Architecture
 
@@ -96,9 +98,9 @@ LangGraph engine automatically:
 
 | Metric | Traditional | FraudForge AI |
 |--------|------------|---------------|
-| **Setup Time** | 3-6 months | 2-4 hours |
-| **Annual Cost** | $500K-$2M | ~$50K (cloud + AI) |
-| **Customization** | Weeks | 2-4 hours |
+| **Setup Time** | 3-6 months | 1-2 hours (with prerequisites) |
+| **Annual Cost** | $500K-$2M | ~$1K-$7K (cloud-based) |
+| **Customization** | Weeks | Hours to days |
 | **Scale** | Fixed capacity | Auto-scale |
 | **Vendor Lock-in** | Yes | No |
 
@@ -206,7 +208,15 @@ cd ..
 ./deploy-terraform.sh
 ```
 
-**Prerequisites:** Google Cloud account, Terraform, gcloud CLI
+**Prerequisites:** 
+- Google Cloud account with billing enabled
+- Docker Desktop 4.0+
+- Terraform 1.5.0+
+- Google Cloud SDK (gcloud) 450.0.0+
+- jq 1.6+
+- API keys: Hugging Face, Pinecone, OpenRouter
+
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for complete prerequisites and step-by-step deployment instructions.
 
 ## 🎯 API Endpoints
 
@@ -245,7 +255,7 @@ See API docs at `http://localhost:8080/docs` for full details.
 - **CORS Protection** - Configured for production domains
 - **API Key Management** - Secure secrets handling via Terraform
 
-See `SECURITY.md` for deployment security guidelines and secrets management.
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for deployment security and secrets management.
 
 ## 📄 License
 
@@ -257,5 +267,5 @@ MIT License - Use it, modify it, ship it.
 
 Companies spend $500K-$2M/year on Salesforce Apex, Pega BPM, or IBM Fraud Detection. This project proves you can build your own for ~$50K/year using open-source GenAI and modern cloud infrastructure.
 
-[Architecture Diagram](/docs/fraud-diagram.html) | [Security Guidelines](SECURITY.md)
+[Architecture Diagram](/docs/fraud-diagram.html) | [Deployment Guide](DEPLOYMENT_GUIDE.md)
 

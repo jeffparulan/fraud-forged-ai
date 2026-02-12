@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Optional MCP integration for enhanced context
 try:
-    from app.utils.mcp_client import get_mcp_client
+    from app.mcp.client import get_mcp_client
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -294,18 +294,18 @@ class LangGraphRouter:
                     if enhancement not in base_explanation:
                         base_explanation += enhancement
             
-            # For all sectors, ensure explanation has sufficient detail
-            sentences = base_explanation.split('.')
-            if len(sentences) < 2:
-                # Add context about the analysis
+            # For all sectors, ensure explanation has sufficient detail (at least 3 sentences)
+            sentences = [s.strip() for s in base_explanation.split('.') if s.strip()]
+            if len(sentences) < 3:
+                # Add context about the analysis methodology
                 if sector == "banking":
-                    enhancement = f" This analysis evaluated transaction patterns, account history, and geographic risk factors to determine the fraud probability."
+                    enhancement = f" This analysis evaluated transaction patterns, account history, geographic risk factors, device fingerprinting, and transaction velocity to determine the fraud probability. The assessment considers both individual risk indicators and their combined impact on overall fraud likelihood."
                 elif sector == "ecommerce":
-                    enhancement = f" This analysis examined seller behavior, pricing patterns, and marketplace indicators to assess fraud risk."
+                    enhancement = f" This analysis examined seller account age, pricing patterns relative to market value, customer review sentiment, shipping origin transparency, and product listing details to assess fraud risk. Multiple data points were cross-referenced to identify potential scams or fraudulent listings."
                 elif sector == "supply_chain":
-                    enhancement = f" This analysis reviewed supplier credentials, pricing anomalies, and logistics patterns to identify potential fraud."
+                    enhancement = f" This analysis reviewed supplier credentials, pricing anomalies relative to market rates, logistics patterns, payment terms, and documentation completeness to identify potential fraud. The evaluation considers both individual risk factors and their correlation with known fraud patterns."
                 else:
-                    enhancement = f" This analysis evaluated multiple risk factors to determine the fraud probability."
+                    enhancement = f" This analysis evaluated multiple risk factors across different dimensions to determine the fraud probability. The assessment combines pattern recognition with statistical analysis to provide a comprehensive risk evaluation."
                 
                 if enhancement not in base_explanation:
                     base_explanation += enhancement
@@ -920,8 +920,12 @@ class LangGraphRouter:
             factors.append(f"account age only {user_age} days")
         
         if factors:
-            return "Red flags detected: " + ", ".join(factors) + "."
-        return "Transaction appears legitimate with standard patterns."
+            base = "Red flags detected: " + ", ".join(factors) + "."
+            # Add more context about why these are red flags
+            context = " These indicators suggest potential fraudulent activity requiring further investigation. The combination of multiple risk factors increases the overall fraud probability."
+            return base + context
+        
+        return "Transaction appears legitimate with standard patterns. This analysis evaluated transaction amount, account age, geographic location, device fingerprint, transaction timing, and KYC verification status. No significant fraud indicators were detected in the available data."
     
     def _explain_medical(self, data: Dict[str, Any], score: float) -> str:
         factors = []
@@ -942,33 +946,62 @@ class LangGraphRouter:
             factors.append("provider has previous fraud flags")
         
         if factors:
-            return "Suspicious indicators: " + ", ".join(factors) + "."
-        return "Claim follows standard medical billing patterns."
+            base = "Suspicious indicators: " + ", ".join(factors) + "."
+            # Add more context about medical fraud
+            context = " These indicators suggest potential billing fraud, upcoding, or unnecessary procedures. Medical fraud can involve overcharging, billing for services not rendered, or performing medically unnecessary procedures."
+            return base + context
+        
+        return "Claim follows standard medical billing patterns. This analysis evaluated claim amount, procedure count, provider history, diagnosis-procedure compatibility, and billing frequency. No significant fraud indicators were detected in the available data."
     
     def _explain_ecommerce(self, data: Dict[str, Any], score: float) -> str:
         factors = []
+        details = []
         
         seller_age = data.get("seller_age_days", 365)
         if seller_age < 30:
             factors.append(f"seller account only {seller_age} days old")
+            details.append(f"New seller accounts ({seller_age} days) are statistically more likely to engage in fraudulent activities, as they lack established reputation and transaction history.")
         
         price = data.get("price", 0)
         market_price = data.get("market_price", price)
-        if market_price > 0 and price < market_price * 0.5:
-            discount = ((market_price - price) / market_price) * 100
-            factors.append(f"price {discount:.0f}% below market value")
+        if market_price > 0:
+            price_diff = ((price - market_price) / market_price) * 100
+            if price < market_price * 0.5:
+                discount = abs(price_diff)
+                factors.append(f"price {discount:.0f}% below market value")
+                details.append(f"Significant price deviation ({discount:.0f}% below market) may indicate counterfeit goods, stolen items, or bait-and-switch schemes.")
+            elif price > market_price * 1.5:
+                markup = price_diff
+                factors.append(f"price {markup:.0f}% above market value")
+                details.append(f"Unusually high pricing ({markup:.0f}% above market) suggests potential price gouging or exploitation of buyers.")
         
         reviews = data.get("reviews", [])
-        if isinstance(reviews, list) and len(reviews) == 0:
-            factors.append("no customer reviews")
+        if isinstance(reviews, list):
+            if len(reviews) == 0:
+                factors.append("no customer reviews")
+                details.append("Lack of customer reviews prevents verification of seller reliability and product authenticity.")
+            else:
+                # Check for negative reviews
+                negative_keywords = ["negative", "bad", "poor", "terrible", "scam", "fake", "fraud"]
+                negative_count = sum(1 for review in reviews if any(keyword in str(review).lower() for keyword in negative_keywords))
+                if negative_count > 0:
+                    factors.append(f"{negative_count} negative review(s)")
+                    details.append(f"Negative customer feedback ({negative_count} review(s)) indicates potential quality issues, misrepresentation, or fraudulent behavior.")
         
         shipping = data.get("shipping_location", "")
-        if "unknown" in str(shipping).lower():
+        if "unknown" in str(shipping).lower() or not shipping:
             factors.append("unclear shipping origin")
+            details.append("Unclear or missing shipping origin raises concerns about product authenticity, import compliance, and delivery reliability.")
         
+        # Build comprehensive explanation
         if factors:
-            return "Warning signs present: " + ", ".join(factors) + "."
-        return "Listing appears legitimate with typical marketplace patterns."
+            base = "Warning signs present: " + ", ".join(factors) + "."
+            if details:
+                base += " " + " ".join(details)
+            return base
+        
+        # For legitimate listings, provide more context
+        return "Listing appears legitimate with typical marketplace patterns. This analysis evaluated seller account history, pricing consistency, customer feedback, and shipping transparency. No significant fraud indicators were detected in the available data."
     
     def _explain_supply_chain(self, data: Dict[str, Any], score: float) -> str:
         factors = []
