@@ -10,17 +10,22 @@ export function sanitizeString(input: string): string {
   }
   
   // Remove potentially dangerous characters and protocols
-  return input
+  let sanitized = input
     .replace(/[<>"'`\\]/g, '') // Remove <, >, ", ', `, \
     .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
     .replace(/vbscript:/gi, '') // Remove vbscript: protocol
     .replace(/file:/gi, '') // Remove file: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers (no spaces)
-    .replace(/on\s+\w+=/gi, '') // Remove event handlers (with spaces)
-    .trim()
-    .slice(0, 10000) // Max length limit
+  
+  // Remove event handlers repeatedly until none remain
+  let previous
+  do {
+    previous = sanitized
+    sanitized = sanitized.replace(/on\w+=/gi, '').replace(/on\s+\w+=/gi, '')
+  } while (sanitized !== previous)
+  
+  return sanitized.trim().slice(0, 10000) // Max length limit
 }
 
 // Validate email format
