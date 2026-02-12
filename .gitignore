@@ -23,13 +23,14 @@ yarn-error.log*
 .pnp.*
 .yarn/
 
-# Environment variables
+# Environment variables & secrets (NEVER commit!)
 .env
 .env.local
 .env.production
 .env.development
 .env.*.local
 *.env
+!.env.example
 
 # Terraform
 infrastructure/.terraform/

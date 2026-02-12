@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.rag_engine import RAGEngine
-from app.utils.mcp_pinecone import MCPPinecone
+from app.mcp.pinecone import MCPPinecone
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

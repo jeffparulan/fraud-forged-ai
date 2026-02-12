@@ -11,4 +11,4 @@ langchain-community>=0.3.27,<0.4.0
 langgraph>=0.2.0,<0.3.0
 huggingface-hub>=0.26.0
 gradio-client>=0.15.0  # For calling HF Spaces API
-protobuf>=4.25.8,<5.0.0
+protobuf>=5.29.6,<6.0.0  # CVE-2026-0994: JSON recursion depth bypass fix

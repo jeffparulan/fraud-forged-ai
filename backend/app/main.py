@@ -6,7 +6,6 @@ import time
 import os
 import logging
 import asyncio
-from threading import Thread
 from contextlib import asynccontextmanager
 import base64
 import json
@@ -14,7 +13,7 @@ import json
 # Your internal modules
 from .langgraph_router import LangGraphRouter
 from .rag_engine import RAGEngine
-from .utils.secrets import get_huggingface_token
+from .core.security import get_huggingface_token
 from .utils.llm_client import LLMClient
 
 # ----------------------------
@@ -22,7 +21,10 @@ from .utils.llm_client import LLMClient
 # ----------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Thread(target=_initialize_services_background, daemon=True).start()
+    # Block startup until services are ready - prevents 503 on cold start
+    # Cloud Run sends traffic as soon as port is open; init takes ~60-90s (Pinecone)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _initialize_services_sync)
     yield
     logger.info("Shutting down FraudForge AI...")
     app_state.clear()
@@ -147,9 +149,9 @@ async def get_models():
     }
 
 # ----------------------------
-# Background Initialization (unchanged)
+# Service Initialization (runs at startup, blocks until ready)
 # ----------------------------
-def _initialize_services_background():
+def _initialize_services_sync():
     global app_state
     logger.info("Initializing FraudForge AI services (background)...")
     try:

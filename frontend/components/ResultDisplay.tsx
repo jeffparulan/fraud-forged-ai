@@ -111,10 +111,15 @@ export default function ResultDisplay({ result, onReset }: Props) {
 
       {/* Explanation */}
       <div className="bg-nightfall-900/50 rounded-lg p-4">
-        <div className="text-sm font-semibold text-sapphire-400 mb-2">AI Analysis</div>
-        <p className="text-gray-300 leading-relaxed" role="text" aria-label={`AI analysis: ${result.explanation}`}>
+        <div className="text-sm font-semibold text-sapphire-400 mb-3">AI Analysis</div>
+        <div 
+          className="text-gray-300 leading-relaxed min-h-[120px] max-h-[300px] overflow-y-auto px-2 py-2 text-sm"
+          role="text" 
+          aria-label={`AI analysis: ${result.explanation}`}
+          style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+        >
           {result.explanation}
-        </p>
+        </div>
       </div>
 
       {/* Metadata */}

@@ -279,7 +279,7 @@ export default function Features() {
                 <li>• 100% open source, you own it</li>
                 <li>• Explainable AI you control</li>
                 <li>• No vendor, no lock-in</li>
-                <li>• Deploy in 2-4 hours</li>
+                <li>• Streamlined deployment with detailed guide</li>
                 <li>• Infinite auto-scaling</li>
               </ul>
             </div>

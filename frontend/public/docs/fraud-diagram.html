@@ -417,6 +417,36 @@
             object-position: center;
         }
 
+        .openrouter-icon {
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            min-height: 18px;
+            max-width: 18px;
+            max-height: 18px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 4px;
+            flex-shrink: 0;
+            object-fit: contain;
+            object-position: center;
+        }
+
+        .nvidia-icon {
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            min-height: 16px;
+            max-width: 16px;
+            max-height: 16px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 6px;
+            flex-shrink: 0;
+            object-fit: contain;
+            object-position: center;
+        }
+
         /* Terraform Infrastructure */
         .terraform { 
             border-color: #7B42BC; 
@@ -673,7 +703,7 @@
                             Google Cloud Platform
                         </div>
 
-                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; align-items: center;">
                             <div class="component frontend">
                                 <i class="fa-brands fa-react component-icon" style="color: #8b5cf6;"></i>
                                 <div class="component-title">Next.js Frontend</div>
@@ -688,15 +718,15 @@
                                 <span class="component-badge">Cloud Run</span>
                             </div>
 
-                            <div class="component orchestration" style="min-width: 180px; position: relative;">
+                            <div class="component orchestration" style="min-width: 180px; position: relative; margin-right: 0.5rem;">
                                 <i class="fa-solid fa-diagram-project component-icon" style="color: #10b981;"></i>
                                 <div class="component-title">LangGraph Router</div>
                                 <div class="component-desc">Intelligent Orchestration<br/>Route + Context</div>
                                 <!-- Arrow to MCP -->
-                                <div class="side-arrow" style="right: -50px; top: 50%; transform: translateY(-50%);">→</div>
+                                <div class="side-arrow" style="right: -35px; top: 50%; transform: translateY(-50%); z-index: 1;">→</div>
                             </div>
 
-                            <div class="component" style="min-width: 180px; border-color: #06b6d4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.05));">
+                            <div class="component" style="min-width: 180px; border-color: #06b6d4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.05)); position: relative; z-index: 2; margin-left: 0.5rem;">
                                 <i class="fa-solid fa-plug component-icon" style="color: #06b6d4;"></i>
                                 <div class="component-title">MCP Server</div>
                                 <div class="component-desc">Model Context Protocol<br/>External Tools & Data</div>
@@ -706,10 +736,17 @@
                     </div>
 
                     <div class="component data" style="min-width: 180px;">
-                        <i class="fa-solid fa-database component-icon" style="color: #f59e0b;"></i>
+                        <img src="/pinecone-logo.svg" 
+                             alt="Pinecone" 
+                             style="width: 32px; height: 32px; margin-bottom: 8px;" />
                         <div class="component-title">Pinecone RAG</div>
                         <div class="component-desc">100+ Fraud Patterns<br/>Vector Search</div>
-                        <span class="component-badge" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">Cloud</span>
+                        <span class="component-badge" style="background: rgba(15, 157, 88, 0.2); border-color: rgba(15, 157, 88, 0.4); color: #1ED87D;">
+                            <img src="/pinecone-logo.svg" 
+                                 alt="Pinecone" 
+                                 style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;" />
+                            Pinecone Cloud
+                        </span>
                     </div>
                 </div>
 
@@ -723,42 +760,65 @@
                             Hugging Face Inference + 
                             <img src="/gcp-vertexai.png" alt="Google Vertex AI" class="vertexai-icon" />
                             Google Vertex AI
+                            <span style="margin: 0 8px; color: rgba(255,255,255,0.6);">+</span>
+                            <img src="/openrouter-logo.svg" 
+                                 alt="OpenRouter" 
+                                 style="width: 18px; height: 18px; margin-right: 4px; vertical-align: middle; display: inline-block;" />
+                            OpenRouter
                         </div>
                         <div class="models-grid">
                             <div class="model-card">
-                                <i class="fa-solid fa-building-columns component-icon" style="color: #10b981;"></i>
-                                <div class="component-title">Qwen2.5-72B-Instruct</div>
+                                <img src="/qwen-logo.svg" 
+                                     alt="Qwen" 
+                                     style="width: 36px; height: 36px; margin-bottom: 8px;" />
+                                <div class="component-title" style="font-size: 0.95rem;">
+                                    Qwen2.5-72B-Instruct
+                                </div>
                                 <div class="component-desc">Banking & Crypto<br/>(HF Pro - Financial Reasoning)</div>
                                 <div class="fallback-section">
                                     <div class="fallback-label">Fallbacks</div>
                                     <div class="fallback-chain">
                                         <div class="fallback-item">
                                             <div class="fallback-number">1</div>
-                                            <div class="fallback-name">NVIDIA Nemotron-3-Nano-30B</div>
-                                            <div class="fallback-badge">OpenRouter</div>
+                                            <div class="fallback-name">
+                                                <img src="/nvidia-logo.svg" alt="NVIDIA" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" />
+                                                Nemotron-3-Nano-30B
+                                            </div>
+                                            <div class="fallback-badge">
+                                                <img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 10px; height: 10px; margin-right: 2px; vertical-align: middle;" />
+                                                OpenRouter
+                                            </div>
                                         </div>
                                         <div class="fallback-item">
                                             <div class="fallback-number">2</div>
                                             <div class="fallback-name">Llama-3.1-70B</div>
-                                            <div class="fallback-badge">OpenRouter</div>
+                                            <div class="fallback-badge">
+                                                <img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 10px; height: 10px; margin-right: 2px; vertical-align: middle;" />
+                                                OpenRouter
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="model-card two-stage">
-                                <i class="fa-solid fa-heart-pulse component-icon" style="color: #ef4444;"></i>
-                                <div class="component-title">Two-Stage Pipeline</div>
+                                <i class="fa-solid fa-heart-pulse component-icon" style="color: #ef4444; font-size: 2rem;"></i>
+                                <div class="component-title" style="font-size: 0.95rem;">Two-Stage Pipeline</div>
                                 <div class="component-desc">Medical Claims<br/>(HF Inference API - Clinical + Fraud)</div>
                                 <div class="pipeline-stages">
                                     <div class="stage-box">
                                         <div class="stage-label">Stage 1</div>
-                                        <div class="stage-model">Google MedGemma-4B-IT</div>
+                                        <div class="stage-model" style="font-size: 0.75rem;">Google MedGemma-4B-IT</div>
                                         <div class="stage-desc">Clinical Legitimacy Validation</div>
                                     </div>
                                     <div class="pipeline-arrow">→</div>
                                     <div class="stage-box">
                                         <div class="stage-label">Stage 2</div>
-                                        <div class="stage-model">Qwen2.5-72B</div>
+                                        <div class="stage-model" style="font-size: 0.75rem;">
+                                            <img src="/qwen-logo.svg" 
+                                                 alt="Qwen" 
+                                                 style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle; display: inline-block;" />
+                                            Qwen2.5-72B
+                                        </div>
                                         <div class="stage-desc">Fraud Pattern Analysis</div>
                                     </div>
                                 </div>
@@ -767,48 +827,80 @@
                                     <div class="fallback-chain">
                                         <div class="fallback-item">
                                             <div class="fallback-number">1</div>
-                                            <div class="fallback-name">NVIDIA Nemotron-3-Nano-30B</div>
-                                            <div class="fallback-badge">OpenRouter</div>
+                                            <div class="fallback-name">
+                                                <img src="/nvidia-logo.svg" alt="NVIDIA" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" />
+                                                Nemotron-3-Nano-30B
+                                            </div>
+                                            <div class="fallback-badge">
+                                                <img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 10px; height: 10px; margin-right: 2px; vertical-align: middle;" />
+                                                OpenRouter
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="model-card">
-                                <i class="fa-solid fa-cart-shopping component-icon" style="color: #8b5cf6;"></i>
-                                <div class="component-title">NVIDIA Nemotron-2 (12B VL)</div>
-                                <div class="component-desc">E-commerce<br/>(OpenRouter - Marketplace Fraud)</div>
+                                <img src="/nvidia-logo.svg" 
+                                     alt="NVIDIA" 
+                                     style="width: 36px; height: 36px; margin-bottom: 8px;" />
+                                <div class="component-title" style="font-size: 0.9rem;">
+                                    NVIDIA Nemotron-2 (12B VL)
+                                </div>
+                                <div class="component-desc">E-commerce<br/>(<img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" /> OpenRouter - Marketplace Fraud)</div>
                                 <div class="fallback-section">
                                     <div class="fallback-label">Fallbacks</div>
                                     <div class="fallback-chain">
                                         <div class="fallback-item">
                                             <div class="fallback-number">1</div>
-                                            <div class="fallback-name">Qwen2.5-72B</div>
+                                            <div class="fallback-name">
+                                                <img src="/qwen-logo.svg" alt="Qwen" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" />
+                                                Qwen2.5-72B
+                                            </div>
                                             <div class="fallback-badge paid">HF Pro</div>
                                         </div>
                                         <div class="fallback-item">
                                             <div class="fallback-number">2</div>
-                                            <div class="fallback-name">NVIDIA Nemotron-3-Nano-30B</div>
-                                            <div class="fallback-badge">OpenRouter</div>
+                                            <div class="fallback-name">
+                                                <img src="/nvidia-logo.svg" alt="NVIDIA" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" />
+                                                Nemotron-3-Nano-30B
+                                            </div>
+                                            <div class="fallback-badge">
+                                                <img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 10px; height: 10px; margin-right: 2px; vertical-align: middle;" />
+                                                OpenRouter
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="model-card">
-                                <i class="fa-solid fa-truck component-icon" style="color: #f59e0b;"></i>
-                                <div class="component-title">NVIDIA Nemotron-2 (12B VL)</div>
-                                <div class="component-desc">Supply Chain<br/>(OpenRouter - Logistics Fraud)</div>
+                                <img src="/nvidia-logo.svg" 
+                                     alt="NVIDIA" 
+                                     style="width: 36px; height: 36px; margin-bottom: 8px;" />
+                                <div class="component-title" style="font-size: 0.9rem;">
+                                    NVIDIA Nemotron-2 (12B VL)
+                                </div>
+                                <div class="component-desc">Supply Chain<br/>(<img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle; display: inline-block;" /> OpenRouter - Logistics Fraud)</div>
                                 <div class="fallback-section">
                                     <div class="fallback-label">Fallbacks</div>
                                     <div class="fallback-chain">
                                         <div class="fallback-item">
                                             <div class="fallback-number">1</div>
-                                            <div class="fallback-name">Qwen2.5-72B</div>
+                                            <div class="fallback-name">
+                                                <img src="/qwen-logo.svg" alt="Qwen" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" />
+                                                Qwen2.5-72B
+                                            </div>
                                             <div class="fallback-badge paid">HF Pro</div>
                                         </div>
                                         <div class="fallback-item">
                                             <div class="fallback-number">2</div>
-                                            <div class="fallback-name">NVIDIA Nemotron-3-Nano-30B</div>
-                                            <div class="fallback-badge">OpenRouter</div>
+                                            <div class="fallback-name">
+                                                <img src="/nvidia-logo.svg" alt="NVIDIA" style="width: 12px; height: 12px; margin-right: 3px; vertical-align: middle;" />
+                                                Nemotron-3-Nano-30B
+                                            </div>
+                                            <div class="fallback-badge">
+                                                <img src="/openrouter-logo.svg" alt="OpenRouter" style="width: 10px; height: 10px; margin-right: 2px; vertical-align: middle;" />
+                                                OpenRouter
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -844,7 +936,7 @@
                         Infrastructure as Code - Terraform
                     </div>
                     <div class="infrastructure-desc">
-                        One-command deployment: All GCP resources (Cloud Run, IAM, networking) provisioned in 2-4 hours
+                        Streamlined deployment: All GCP resources (Cloud Run, IAM, networking) provisioned with detailed guide (1-2 hours with prerequisites)
                     </div>
                 </div>
             </div>
@@ -877,7 +969,7 @@
         <footer>
             <strong>FraudForge AI</strong> - Terraform IaC • LangGraph • Pinecone • Hugging Face • Google Vertex AI • MCP • Cloud Run
             <div class="overview">
-                Open source platform achieving 95%+ cost savings vs traditional BPM solutions • Deploy in 2-4 hours with Terraform
+                Open source platform achieving 95%+ cost savings vs traditional BPM solutions • Streamlined deployment with Terraform and detailed guide
             </div>
         </footer>
     </div>
