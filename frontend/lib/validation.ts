@@ -9,11 +9,14 @@ export function sanitizeString(input: string): string {
     return ''
   }
   
-  // Remove potentially dangerous characters
+  // Remove potentially dangerous characters and protocols
   return input
-    .replace(/[<>]/g, '') // Remove < and >
+    .replace(/[<>"'`]/g, '') // Remove <, >, ", ', `
     .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/file:/gi, '') // Remove file: protocol
+    .replace(/on\w+\s*=/gi, '') // Remove event handlers
     .trim()
     .slice(0, 10000) // Max length limit
 }
