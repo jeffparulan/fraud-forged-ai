@@ -172,8 +172,9 @@ class LLMClient:
                            f"Additional red flags detected: {', '.join(risk_factors[1:])}. " \
                            f"This transaction requires immediate review and manual verification."
                 
+                # Avoid logging country names (may be PII/location data)
                 logger.info(f"💰 [Cost Savings] OFAC pre-check triggered - skipping LLM call. Score: {fraud_score} ({risk_level})")
-                logger.info(f"   → Countries: {countries_str}, Red flags: {red_flags_count + 1}")
+                logger.debug(f"   → Red flags: {red_flags_count + 1}")
                 
                 return {
                     "fraud_score": fraud_score,
@@ -185,7 +186,7 @@ class LLMClient:
                 }
             # If OFAC but fewer red flags, still call LLM for detailed analysis
             else:
-                logger.info(f"⚠️  OFAC country detected ({', '.join(ofac_countries)}) but proceeding with LLM for detailed analysis")
+                logger.info("⚠️  OFAC country detected but proceeding with LLM for detailed analysis")
 
         # Build prompt based on sector, including RAG context
         prompt = build_prompt(sector, data, rag_context)
@@ -311,8 +312,8 @@ class LLMClient:
                     elif hasattr(chat_error, 'response') and hasattr(chat_error.response, 'status_code'):
                         status_code = chat_error.response.status_code
                     
-                    # Log error details for debugging
-                    logger.warning(f"⚠️  Chat completion error on attempt {attempt + 1}/{max_retries}: {type(chat_error).__name__}: {str(chat_error)[:200]}")
+                    # Log error type only - avoid logging full error (may contain sensitive data)
+                    logger.warning(f"⚠️  Chat completion error on attempt {attempt + 1}/{max_retries}: {type(chat_error).__name__}")
                     
                     # If 400 Bad Request, check if this is a chat-only model
                     if status_code == 400 or "400" in error_str or "bad request" in error_str:
@@ -327,9 +328,8 @@ class LLMClient:
                             else:
                                 # Final attempt failed - don't fall back to text_generation
                                 logger.error(f"❌ Chat completion failed for {model_name} after {max_retries} attempts with 400 error.")
-                                logger.error(f"   Error details: {str(chat_error)}")
                                 logger.error(f"   This model only supports conversational tasks (chat_completion).")
-                                raise ValueError(f"Model {model_name} only supports conversational tasks (chat_completion), but chat_completion failed with 400 Bad Request after {max_retries} attempts: {str(chat_error)}")
+                                raise ValueError(f"Model {model_name} only supports conversational tasks (chat_completion), but chat_completion failed with 400 Bad Request after {max_retries} attempts")
                         else:
                             # Non-chat-only model - can fall back to text_generation
                             logger.debug(f"  → Model {model_name} doesn't support chat_completion (400), using text_generation directly")
@@ -356,7 +356,7 @@ class LLMClient:
                         if chat_only:
                             # Chat-only model - don't fall back to text_generation
                             logger.error(f"❌ Chat completion failed for {model_name} after {max_retries} attempts. This model only supports conversational tasks.")
-                            raise ValueError(f"Model {model_name} only supports conversational tasks (chat_completion), but chat_completion failed: {str(chat_error)}")
+                            raise ValueError(f"Model {model_name} only supports conversational tasks (chat_completion), but chat_completion failed after {max_retries} attempts")
                         else:
                             logger.debug(f"  → chat_completion failed ({type(chat_error).__name__}), falling back to text_generation")
         
@@ -626,7 +626,8 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
             ]
             
             if any(indicator in result_str for indicator in error_indicators):
-                logger.error(f"❌ HF Space returned an error response: {result_str[:300]}")
+                # Do not log result_str - may contain sensitive medical/claim data
+                logger.error("❌ HF Space returned an error response (error indicator detected)")
                 logger.warning("  → Treating as failure, will fallback to next model")
                 return None  # Return None to trigger fallback
             
@@ -713,8 +714,8 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         clinical_reasoning = stage1_result.get("reasoning", "Clinical validation completed.")
         clinical_flags = stage1_result.get("risk_factors", [])
         
-        logger.info(f"✅ [Stage 1] Clinical legitimacy score: {clinical_score}/100")
-        logger.info(f"   Clinical flags: {len(clinical_flags)}")
+        # Avoid logging sensitive clinical data - use debug for diagnostics only
+        logger.debug(f"[Stage 1] Clinical legitimacy score: {clinical_score}/100, flags: {len(clinical_flags)}")
         
         # ============================================================
         # STAGE 2: FRAUD PATTERN ANALYSIS (Qwen)
@@ -743,8 +744,8 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         fraud_reasoning = stage2_result.get("reasoning", "Fraud analysis completed.")
         fraud_risk_factors = stage2_result.get("risk_factors", [])
         
-        logger.info(f"✅ [Stage 2] Final fraud score: {fraud_score}/100 ({get_risk_level(fraud_score)})")
-        logger.info(f"   Risk factors: {len(fraud_risk_factors)}")
+        # Avoid logging sensitive fraud analysis data - use debug for diagnostics only
+        logger.debug(f"[Stage 2] Final fraud score: {fraud_score}/100 ({get_risk_level(fraud_score)}), risk factors: {len(fraud_risk_factors)}")
         
         # ============================================================
         # COMBINE STAGE 1 + STAGE 2 RESULTS
