@@ -394,7 +394,7 @@ class LLMClient:
                 else:
                     generated_text = str(result)
                 
-                logger.info(f"✅ HF API success (text_generation) with {model_name}! Response: {str(generated_text)[:200]}...")
+                logger.info(f"✅ HF API success (text_generation) with {model_name}! Response length: {len(str(generated_text))} chars")
                 
                 # Parse the response to extract fraud score and reasoning
                 parsed = parse_model_response(str(generated_text), sector, data, is_clinical_stage=is_clinical_stage)
@@ -471,7 +471,7 @@ class LLMClient:
                 return None
 
             generated_text = choices[0]["message"]["content"]
-            logger.info(f"✅ OpenRouter success with {model_name}! Response: {str(generated_text)[:200]}...")
+            logger.info(f"✅ OpenRouter success with {model_name}! Response length: {len(str(generated_text))} chars")
 
             parsed = parse_model_response(str(generated_text), sector, data)
             return parsed
