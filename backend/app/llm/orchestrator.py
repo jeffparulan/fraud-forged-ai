@@ -293,7 +293,7 @@ class LLMClient:
                     
                     generated_text = response.choices[0].message.content
                     
-                    logger.info(f"✅ HF API success (chat) with {model_name}! Response length: {len(str(generated_text))} chars")
+                    logger.info(f"✅ HF API success (chat) with {model_name}")
                     
                     # Parse the response to extract fraud score and reasoning
                     parsed = parse_model_response(str(generated_text), sector, data, is_clinical_stage=is_clinical_stage)
@@ -394,7 +394,7 @@ class LLMClient:
                 else:
                     generated_text = str(result)
                 
-                logger.info(f"✅ HF API success (text_generation) with {model_name}! Response length: {len(str(generated_text))} chars")
+                logger.info(f"✅ HF API success (text_generation) with {model_name}")
                 
                 # Parse the response to extract fraud score and reasoning
                 parsed = parse_model_response(str(generated_text), sector, data, is_clinical_stage=is_clinical_stage)
@@ -471,7 +471,7 @@ class LLMClient:
                 return None
 
             generated_text = choices[0]["message"]["content"]
-            logger.info(f"✅ OpenRouter success with {model_name}! Response length: {len(str(generated_text))} chars")
+            logger.info(f"✅ OpenRouter success with {model_name}")
 
             parsed = parse_model_response(str(generated_text), sector, data)
             return parsed
@@ -612,7 +612,7 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
                 result = client.predict(claim_text)
             
             result_str = str(result)
-            logger.info(f"✅ HF Space API success! Response length: {len(result_str)} chars")
+            logger.info(f"✅ HF Space API success")
             
             # Check if the Space returned an error (CUDA errors, etc.)
             error_indicators = [
