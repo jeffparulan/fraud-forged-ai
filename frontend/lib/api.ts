@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { getApiUrlCached } from './config'
 import { sanitizeFormData, checkRateLimit } from './validation'
 
@@ -21,58 +20,54 @@ export interface FraudDetectionResponse {
   similar_patterns?: number
 }
 
-// Create axios instance with security defaults
-const apiClient = axios.create({
-  timeout: 120000, // 120s to accommodate slow OpenRouter free tier (backend has 90s timeout)
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  // Prevent axios from automatically parsing responses that could contain XSS
-  transformResponse: [(data) => {
+function mapHttpError(status: number, fallback: string): Error {
+  if (status === 401) return new Error('Authentication required')
+  if (status === 403) return new Error('Access forbidden')
+  if (status === 429) return new Error('Too many requests. Please try again later.')
+  if (status === 500) return new Error('Server error. Please try again later.')
+  if (status === 503) return new Error('Service temporarily unavailable')
+  return new Error(fallback)
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 120000) // 120s
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers || {}),
+      },
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      let detail = 'Request failed'
+      try {
+        const errBody = await response.json()
+        detail = errBody?.detail || detail
+      } catch {
+        // Ignore parse errors and use default detail
+      }
+      throw mapHttpError(response.status, detail)
+    }
+
     try {
-      return JSON.parse(data)
-    } catch (e) {
+      return (await response.json()) as T
+    } catch {
       throw new Error('Invalid response format')
     }
-  }]
-})
-
-// Request interceptor for security
-apiClient.interceptors.request.use(
-  (config) => {
-    // Rate limiting check (client-side)
-    if (!checkRateLimit()) {
-      throw new Error('Too many requests. Please wait a moment and try again.')
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.')
     }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
+    throw error instanceof Error ? error : new Error('Request failed')
+  } finally {
+    clearTimeout(timeout)
   }
-)
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Don't expose internal error details
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status
-      if (status === 401) {
-        throw new Error('Authentication required')
-      } else if (status === 403) {
-        throw new Error('Access forbidden')
-      } else if (status === 429) {
-        throw new Error('Too many requests. Please try again later.')
-      } else if (status === 500) {
-        throw new Error('Server error. Please try again later.')
-      } else if (status === 503) {
-        throw new Error('Service temporarily unavailable')
-      }
-    }
-    throw error
-  }
-)
+}
 
 export const detectFraud = async (request: FraudDetectionRequest): Promise<FraudDetectionResponse> => {
   // Validate sector
@@ -88,32 +83,38 @@ export const detectFraud = async (request: FraudDetectionRequest): Promise<Fraud
   const url = `${apiUrl}/api/detect`
   
   try {
-    const response = await apiClient.post<FraudDetectionResponse>(url, {
+    // Rate limiting check (client-side)
+    if (!checkRateLimit()) {
+      throw new Error('Too many requests. Please wait a moment and try again.')
+    }
+
+    const data = await fetchJson<FraudDetectionResponse>(url, {
+      method: 'POST',
+      body: JSON.stringify({
       sector: request.sector,
       data: sanitizedData
+      }),
     })
     
     // Validate response structure
-    if (!response.data || typeof response.data.fraud_score !== 'number') {
+    if (!data || typeof data.fraud_score !== 'number') {
       throw new Error('Invalid response format')
     }
     
-    return response.data
+    return data
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.detail || error.message || 'Fraud detection failed'
-      throw new Error(message)
+    if (error instanceof Error) {
+      throw new Error(error.message || 'Fraud detection failed')
     }
-    throw error
+    throw new Error('Fraud detection failed')
   }
 }
 
 export const checkHealth = async () => {
   try {
     const apiUrl = getApiUrl()
-    const response = await axios.get(`${apiUrl}/api/health`)
-    return response.data
-  } catch (error) {
+    return await fetchJson(`${apiUrl}/api/health`)
+  } catch {
     throw new Error('Backend service unavailable')
   }
 }
@@ -121,9 +122,8 @@ export const checkHealth = async () => {
 export const getModels = async () => {
   try {
     const apiUrl = getApiUrl()
-    const response = await axios.get(`${apiUrl}/api/models`)
-    return response.data
-  } catch (error) {
+    return await fetchJson(`${apiUrl}/api/models`)
+  } catch {
     throw new Error('Failed to fetch models')
   }
 }
