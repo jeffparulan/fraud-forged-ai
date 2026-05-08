@@ -85,11 +85,11 @@ def score_supply_chain_fraud(data: Dict[str, Any]) -> float:
     if any(flag in order_details for flag in critical_flags):
         score += 40
 
-    high_risk_flags = ["ghost", "unverified", "no references", "no online presence", "suspicious", "fraud", "inferior quality", "overpriced"]
+    high_risk_flags = ["ghost", "unverified", "no references", "no online presence", "suspicious", "fraud", "inferior quality", "overpriced", "inflated", "duplicate charge", "duplicate charges"]
     if any(flag in order_details for flag in high_risk_flags):
         score += 25
 
-    medium_risk_flags = ["unusual", "irregular", "questionable", "concerning"]
+    medium_risk_flags = ["unusual", "irregular", "questionable", "concerning", "ambiguous", "ambiguous line items", "padded", "padding"]
     if any(flag in order_details for flag in medium_risk_flags):
         score += 15
 

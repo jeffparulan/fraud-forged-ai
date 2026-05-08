@@ -47,10 +47,10 @@ export default function Features() {
       title: 'Multi-Industry Support',
       description: 'Four cost-optimized fraud-specialized LLMs',
       details: [
-        'Banking: Qwen2.5-72B-Instruct (HF Pro - Financial Reasoning)',
-        'Healthcare: Two-Stage Pipeline (HF Inference API - Google MedGemma-4B-IT Clinical → Qwen2.5-72B Fraud)',
-        'E-commerce: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Marketplace Fraud Detection)',
-        'Supply Chain: NVIDIA Nemotron-2 (12B VL) (OpenRouter - Logistics Fraud Detection)'
+        'Banking: Qwen3-32B (HF Inference — Financial Reasoning)',
+        'Healthcare: Two-Stage Pipeline — MedGemma-27B Clinical (HF Inference) → Qwen3-32B Fraud (HF Inference)',
+        'E-commerce: Nemotron-Super-120B (OpenRouter FREE — Marketplace Fraud Detection)',
+        'Supply Chain: Nemotron-Super-120B (OpenRouter FREE — Logistics Fraud Detection)'
       ],
       color: 'text-pink-400'
     },
@@ -132,7 +132,7 @@ export default function Features() {
     },
     {
       title: 'Multi-Model Inference',
-      description: 'Cost-optimized fraud detection using HF Pro (Qwen2.5-72B, Two-Stage Google MedGemma-4B-IT+Qwen2.5-72B) and OpenRouter (NVIDIA Nemotron-2 12B VL) with intelligent fallbacks',
+      description: 'Next-gen fraud detection using HF Inference (Qwen3-32B, MedGemma-27B) and OpenRouter FREE (Nemotron-Super-120B for E-commerce/Supply Chain) with intelligent fallback chains',
       icon: Cpu
     },
     {

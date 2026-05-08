@@ -42,7 +42,7 @@ class BaseLLMProvider(ABC):
         Generate a response from the LLM.
         
         Args:
-            model_name: Model identifier (e.g., "Qwen/Qwen2.5-72B-Instruct")
+            model_name: Model identifier (e.g., "Qwen/Qwen3-32B", "google/medgemma-27b-text-it")
             prompt: The formatted prompt text
             sector: Fraud detection sector (banking, medical, ecommerce, supply_chain)
             data: Original transaction/claim/order data

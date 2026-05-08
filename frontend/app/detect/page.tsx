@@ -22,7 +22,7 @@ export default function DetectPage() {
       id: 'banking' as Sector,
       name: 'Banking & Crypto',
       icon: Building2,
-      model: 'Qwen2.5-72B (HF Pro)',
+      model: 'Qwen3-32B (HF Inference)',
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/20',
       borderColor: 'border-blue-500/30'
@@ -31,7 +31,7 @@ export default function DetectPage() {
       id: 'medical' as Sector,
       name: 'Medical Claims',
       icon: Heart,
-      model: 'Two-Stage: Google MedGemma → Qwen2.5-72B',
+      model: 'Two-Stage: MedGemma-27B → Qwen3-32B',
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/20',
       borderColor: 'border-emerald-500/30'
@@ -40,7 +40,7 @@ export default function DetectPage() {
       id: 'ecommerce' as Sector,
       name: 'E-commerce',
       icon: ShoppingCart,
-      model: 'NVIDIA Nemotron-2 (12B VL)',
+      model: 'Nemotron-Super-120B (OpenRouter FREE)',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
       borderColor: 'border-purple-500/30'
@@ -49,7 +49,7 @@ export default function DetectPage() {
       id: 'supply_chain' as Sector,
       name: 'Supply Chain',
       icon: Package,
-      model: 'NVIDIA Nemotron-2 (12B VL)',
+      model: 'Nemotron-Super-120B (OpenRouter FREE)',
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/20',
       borderColor: 'border-orange-500/30'

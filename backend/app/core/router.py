@@ -3,7 +3,7 @@ LangGraph-powered intelligent routing engine for fraud detection.
 Routes requests to sector-specific LLMs with RAG enhancement.
 """
 from typing import Dict, Any, TypedDict
-from langgraph.graph import Graph, StateGraph
+from langgraph.graph import StateGraph
 import json
 import logging
 
@@ -43,16 +43,16 @@ class LangGraphRouter:
     def __init__(self, rag_engine, hf_client=None):
         self.rag_engine = rag_engine
         self.hf_client = hf_client
-        # Cost-optimized model alignment (HF Pro + OpenRouter FREE)
+        # Model alignment (HF Inference + OpenRouter FREE)
         self.model_mapping = {
-            "banking": "Qwen2.5-72B-Instruct (HF Pro)",
-            "medical": "Two-Stage: MedGemma-4B-IT → Qwen2.5-32B (HF Inference API)",
-            "ecommerce": "Nemotron-2 (12B VL) (FREE)",
-            "supply_chain": "Nemotron-2 (12B VL) (FREE)"
+            "banking": "Qwen3-32B (HF Inference)",
+            "medical": "Two-Stage: GPT-OSS-120B → Qwen3-32B",
+            "ecommerce": "Nemotron-Super-120B (OpenRouter FREE)",
+            "supply_chain": "Nemotron-Super-120B (OpenRouter FREE)"
         }
         self.workflow = self._build_workflow()
     
-    def _build_workflow(self) -> Graph:
+    def _build_workflow(self):
         """Build LangGraph workflow for fraud detection - RAG FIRST for context, then HF/fallback"""
         
         workflow = StateGraph(RouterState)
@@ -73,7 +73,7 @@ class LangGraphRouter:
     def _route_to_model(self, state: RouterState) -> RouterState:
         """Route to appropriate model based on sector"""
         sector = state["sector"]
-        state["model_name"] = self.model_mapping.get(sector, "Nemotron-3-Nano-30B (fallback)")
+        state["model_name"] = self.model_mapping.get(sector, "GPT-OSS-120B (OpenRouter FREE fallback)")
         return state
     
     def _retrieve_rag_context(self, state: RouterState) -> RouterState:
@@ -135,7 +135,7 @@ class LangGraphRouter:
             state["fraud_score"] = rule_based_score
             state["risk_level"] = rule_based_risk
             state["risk_factors"] = []
-            state["model_name"] = "Rule-Based Scoring (LLM rejected or unavailable)"
+            state["model_name"] = "Rule-Based + Pinecone RAG (LLM score rejected)"
             state["_analysis_method"] = "rule_based"
             state["_hf_rejected"] = True
             logger.info(
@@ -257,7 +257,7 @@ def analyze_fraud_rule_based(sector: str, data: Dict[str, Any]) -> Dict[str, Any
 
     fraud_score = router._calculate_fraud_score(sector, data, "")
     risk_level = get_risk_level(fraud_score)
-    model_name = router.model_mapping.get(sector, "Nemotron-3-Nano-30B (fallback)")
+    model_name = router.model_mapping.get(sector, "GPT-OSS-120B (OpenRouter FREE fallback)")
     reasoning = build_rule_based_explanation(sector, data, fraud_score, risk_level, model_name)
 
     return {

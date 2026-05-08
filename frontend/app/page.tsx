@@ -252,8 +252,8 @@ export default function Home() {
             {[
               {
                 title: 'Banking & Crypto',
-                model: 'Qwen2.5-72B-Instruct',
-                modelDescription: 'HF Pro - Financial Reasoning',
+                model: 'Qwen3-32B',
+                modelDescription: 'HF Inference — Financial Reasoning',
                 modelColor: 'text-yellow-400',
                 icon: '🏦',
                 description: 'Velocity anomalies, mule rings, txn graph divergence, wash trading',
@@ -261,8 +261,8 @@ export default function Home() {
               },
               {
                 title: 'Medical Claims',
-                model: 'Google MedGemma-4B-IT + Qwen2.5-72B',
-                modelDescription: 'HF Inference API - Two-Stage: Clinical → Fraud',
+                model: 'MedGemma-27B → Qwen3-32B',
+                modelDescription: 'HF Inference — Two-Stage: Clinical → Fraud',
                 modelColor: 'text-emerald-400',
                 icon: '🏥',
                 description: 'Clinical validation + fraud detection: Upcoding, unbundling, suspect provider behavior',
@@ -270,8 +270,8 @@ export default function Home() {
               },
               {
                 title: 'E-commerce',
-                model: 'NVIDIA Nemotron-2 (12B VL)',
-                modelDescription: 'OpenRouter - Marketplace Fraud',
+                model: 'Nemotron-Super-120B',
+                modelDescription: 'OpenRouter FREE — Marketplace Fraud',
                 modelColor: 'text-purple-400',
                 icon: '🛒',
                 description: 'Return fraud, fake accounts, buyer/seller collusion',
@@ -279,8 +279,8 @@ export default function Home() {
               },
               {
                 title: 'Supply Chain',
-                model: 'NVIDIA Nemotron-2 (12B VL)',
-                modelDescription: 'OpenRouter - Logistics Fraud',
+                model: 'Nemotron-Super-120B',
+                modelDescription: 'OpenRouter FREE — Logistics Fraud',
                 modelColor: 'text-orange-400',
                 icon: '📦',
                 description: 'Ghost suppliers, kickback schemes, price manipulation',
@@ -321,10 +321,10 @@ export default function Home() {
               Built with <span className="gradient-text">Modern Stack</span>
             </h2>
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Cost-optimized fraud detection with HF Pro & OpenRouter models • LangGraph orchestration • Pinecone RAG • MCP • FastAPI • Next.js • Terraform
+              Next-gen fraud detection with HF Inference & OpenRouter FREE models • LangGraph orchestration • Pinecone RAG • MCP • FastAPI • Next.js • Terraform
             </p>
             <div className="flex flex-wrap justify-center gap-4 mb-8">
-              {['LangGraph', 'HF Pro', 'OpenRouter', 'Qwen2.5-72B', 'Google MedGemma-4B-IT', 'NVIDIA Nemotron-2 (12B VL)', 'Pinecone', 'MCP', 'FastAPI', 'Next.js', 'Terraform', 'Cloud Run'].map((tech) => (
+              {['LangGraph', 'HF Inference', 'OpenRouter FREE', 'Qwen3-32B', 'MedGemma-27B', 'Nemotron-Super-120B', 'Pinecone', 'MCP', 'FastAPI', 'Next.js', 'Terraform', 'Cloud Run'].map((tech) => (
                 <span key={tech} className="px-4 py-2 bg-sapphire-500/20 text-sapphire-300 rounded-full text-sm font-semibold border border-sapphire-500/30">
                   {tech}
                 </span>

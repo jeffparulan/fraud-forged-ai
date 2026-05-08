@@ -6,12 +6,12 @@ Orchestrates: config, ofac, prompts, parsing, prechecks, providers.
 import os
 import logging
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
 import httpx
 from huggingface_hub import InferenceClient
 
-from .config import SECTOR_MODELS, SECTOR_LOCATION_FIELDS
+from .config import SECTOR_MODELS, SECTOR_LOCATION_FIELDS, get_sector_model_candidates
 from .ofac import check_ofac_in_data
 from .prompts import build_prompt, build_stage1_clinical_prompt, build_stage2_fraud_prompt
 from .parsing import parse_model_response, get_risk_level
@@ -34,26 +34,30 @@ class LLMClient:
     
     ARCHITECTURE:
     - Single-stage: Banking, E-commerce, Supply Chain use one LLM call
-    - Two-stage: Medical uses sequential MedGemma (clinical) → Qwen (fraud) pipeline
-    
-    MODEL SELECTION:
-    - Banking: Qwen2.5-72B (HF Inference API) - Financial reasoning, AML patterns
-    - Medical: TWO-STAGE
-      ├─ Stage 1: MedGemma-4B-IT (HF Space) - Clinical legitimacy validation
-      └─ Stage 2: Qwen2.5-72B (HF Inference API) - Fraud pattern analysis
-    - E-commerce: Nemotron-2 12B VL (OpenRouter FREE) - Visual reasoning, marketplace dynamics
-    - Supply Chain: Nemotron-2 12B VL (OpenRouter FREE) - Temporal reasoning, logistics
-    
-    FALLBACK CHAIN:
-    - All sectors: Nemotron-3-Nano-30B (OpenRouter FREE) as primary fallback
-    - Medical: MedGemma (Vertex AI) as specialized clinical fallback
-    - Banking: Llama-3.1-70B (OpenRouter FREE) as additional fallback
-    
+    - Two-stage: Medical uses sequential MedGemma-27B (clinical) → Qwen3-32B (fraud) pipeline
+
+    MODEL SELECTION (May 2026):
+    - Banking:      Qwen3-32B (HF Inference via Novita/Together/Fireworks) - Financial reasoning, AML
+    - Medical:      TWO-STAGE
+      ├─ Stage 1:  MedGemma-27B (HF Inference via Featherless AI) - Clinical legitimacy validation
+      │            Google's medical-specialist LLM; GATED — accept Health AI Developer Foundation
+      │            terms at huggingface.co/google/medgemma-27b-text-it before first use.
+      │            If gated/unavailable, falls back to GPT-OSS-120B (OpenRouter FREE).
+      └─ Stage 2:  Qwen3-32B (HF Inference) - Fraud pattern analysis
+    - E-commerce:   Nemotron-Super-120B (OpenRouter FREE, Finance #24) - Calibrated marketplace fraud
+    - Supply Chain: Nemotron-Super-120B (OpenRouter FREE, Finance #24) - Calibrated logistics fraud
+      NOTE: Tencent Hy3 Preview replaced (consistent neutral/medium bias — unreliable for fraud scoring)
+
+    FALLBACK CHAIN (OpenRouter FREE, by Finance leaderboard rank):
+    1. openai/gpt-oss-120b:free               (Finance #20, 120B MoE — Medical Stage 1 fallback)
+    2. tencent/hy3-preview:free               (Finance #4, fallback only)
+    3. google/gemma-4-31b-it:free             (30.7B dense, 262K context)
+    4. meta-llama/llama-3.3-70b-instruct:free (Banking only)
+
     COST OPTIMIZATION:
     - Pre-checks (OFAC, extreme values) bypass expensive LLM calls
-    - HF Pro: $9/month (already subscribed) for Banking/Medical
-    - OpenRouter FREE: $0/month for E-commerce/Supply Chain
-    - Total incremental cost: $0/month
+    - HF Inference: pay-per-token via multiple providers for Banking/Medical
+    - OpenRouter FREE: $0/month for E-commerce/Supply Chain primaries + all fallbacks
     """
     
     def __init__(self, api_token: Optional[str] = None):
@@ -71,6 +75,131 @@ class LLMClient:
             logger.warning("⚠️  No OPENROUTER_API_KEY - PRIMARY models unavailable (Qwen3, DeepSeek, Nemotron)")
         else:
             logger.info("✅ OpenRouter configured (primary provider for fraud-specialized models)")
+        self._model_probe_cache: Dict[str, Dict[str, Any]] = {}
+
+    def _provider_ready(self, provider: str) -> Tuple[bool, str]:
+        """Return whether provider is configured well enough to attempt calls."""
+        if provider == "hf":
+            if not self.api_token:
+                return False, "HUGGINGFACE_API_TOKEN missing"
+            return True, "configured"
+        if provider == "openrouter":
+            if not self.openrouter_api_key:
+                return False, "OPENROUTER_API_KEY missing"
+            return True, "configured"
+        if provider == "hf_space":
+            if not GRADIO_AVAILABLE:
+                return False, "gradio_client missing"
+            if not self.api_token:
+                return False, "HUGGINGFACE_API_TOKEN missing"
+            return True, "configured"
+        if provider == "vertex":
+            return False, "vertex provider not implemented"
+        return False, f"unknown provider: {provider}"
+
+    def _probe_model(self, provider: str, model_name: str) -> Tuple[bool, str]:
+        """
+        Lightweight model probe to verify model endpoint is reachable.
+
+        Uses tiny requests to avoid meaningful inference cost.
+        """
+        ready, reason = self._provider_ready(provider)
+        if not ready:
+            return False, reason
+
+        cache_key = f"{provider}:{model_name}"
+        now = time.time()
+        cached = self._model_probe_cache.get(cache_key)
+        if cached and now - cached.get("checked_at", 0) < 600:
+            return bool(cached.get("available")), str(cached.get("reason", "cached"))
+
+        try:
+            if provider == "hf":
+                try:
+                    response = self.client.chat_completion(
+                        messages=[{"role": "user", "content": "Reply with OK"}],
+                        model=model_name,
+                        max_tokens=8,
+                        temperature=0.0,
+                        stream=False,
+                    )
+                    ok = bool(response and response.choices)
+                    probe_reason = "chat_completion ok" if ok else "chat_completion empty response"
+                except Exception:
+                    # Some models do not support chat_completion; fallback to text_generation probe.
+                    text_res = self.client.text_generation(
+                        "Reply with OK",
+                        model=model_name,
+                        max_new_tokens=8,
+                        temperature=0.0,
+                        return_full_text=False,
+                    )
+                    ok = bool(text_res)
+                    probe_reason = "text_generation ok" if ok else "text_generation empty response"
+            elif provider == "openrouter":
+                headers = {
+                    "Authorization": f"Bearer {self.openrouter_api_key}",
+                    "Content-Type": "application/json",
+                }
+                payload = {
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": "Reply with OK"}],
+                    "max_tokens": 8,
+                    "temperature": 0.0,
+                }
+                resp = httpx.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=30.0,
+                )
+                resp.raise_for_status()
+                body = resp.json()
+                ok = bool(body.get("choices"))
+                probe_reason = "openrouter chat ok" if ok else "openrouter empty choices"
+            elif provider == "hf_space":
+                client = Client(model_name, token=self.api_token)
+                api_info = client.view_api()
+                ok = api_info is not None
+                probe_reason = "hf_space api reachable" if ok else "hf_space view_api returned empty"
+            else:
+                ok = False
+                probe_reason = f"unsupported provider: {provider}"
+        except Exception as e:
+            ok = False
+            probe_reason = f"{type(e).__name__}: {str(e)[:180]}"
+
+        self._model_probe_cache[cache_key] = {
+            "available": ok,
+            "reason": probe_reason,
+            "checked_at": now,
+        }
+        return ok, probe_reason
+
+    def get_model_availability_report(self, live_test: bool = False) -> Dict[str, Any]:
+        """Build per-sector model availability report for API/ops visibility."""
+        report: Dict[str, Any] = {"live_test": live_test, "sectors": {}}
+        for sector in SECTOR_MODELS.keys():
+            entries: List[Dict[str, Any]] = []
+            for candidate in get_sector_model_candidates(sector):
+                provider = candidate["provider"]
+                model_name = candidate["model"]
+                role = candidate["role"]
+                if live_test:
+                    available, reason = self._probe_model(provider, model_name)
+                else:
+                    available, reason = self._provider_ready(provider)
+                entries.append(
+                    {
+                        "role": role,
+                        "provider": provider,
+                        "model": model_name,
+                        "available": available,
+                        "reason": reason,
+                    }
+                )
+            report["sectors"][sector] = entries
+        return report
 
     def analyze_fraud(self, sector: str, data: Dict[str, Any], rag_context: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -261,17 +390,21 @@ class LLMClient:
         max_retries = 3
         base_delay = 2.0  # Start with 2 seconds
         
-        # Models that are known to not support chat_completion (skip it)
+        # Models known to not support chat_completion — go straight to text_generation
         models_no_chat = [
             "instruction-pretrain/finance-Llama3-8B",
             "meta-llama/Llama-3.1-8B-Instruct",
-            "mistralai/Mistral-7B-Instruct-v0.2"
+            "mistralai/Mistral-7B-Instruct-v0.2",
         ]
-        
-        # Models that ONLY support chat_completion (conversational) - NEVER use text_generation
+
+        # Models that ONLY support chat_completion — NEVER fall back to text_generation
+        # Qwen3-32B (primary) and Qwen2.5-* (legacy) use the conversational interface only.
+        # MedGemma-27B is also instruction-tuned and chat-only.
         models_chat_only = [
+            "Qwen",          # matches Qwen/Qwen3-32B, Qwen/Qwen2.5-*, etc.
             "qwen",
-            "Qwen"
+            "medgemma",      # google/medgemma-27b-text-it
+            "MedGemma",
         ]
         
         skip_chat = any(no_chat in model_name for no_chat in models_no_chat)
@@ -485,7 +618,7 @@ class LLMClient:
         Call Hugging Face Space API using gradio_client.
         
         Args:
-            space_name: HF Space name (e.g., "ironjeffe/google-medgemma-4b-it")
+            space_name: HF Space name (e.g., "google/medgemma-27b-text-it")
             data: Medical claim data dictionary
             sector: Sector name
             is_clinical_stage: If True, parse as clinical validation response
@@ -695,14 +828,22 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         
         stage1_prompt = build_stage1_clinical_prompt(data, rag_context)
         
-        # Try Stage 1 model
-        if stage1_config["provider"] == "hf_space":
-            stage1_result = self._try_hf_space_model(stage1_config["model"], data, sector, is_clinical_stage=True)
-        elif stage1_config["provider"] == "hf":
-            stage1_result = self._try_hf_model(stage1_config["model"], stage1_prompt, sector, data, is_clinical_stage=True)
-        elif stage1_config["provider"] == "vertex":
-            stage1_result = self._try_vertex_model(stage1_config["model"], stage1_prompt, sector, data)
-        else:
+        # Try Stage 1 model — wrap in try/except so any provider-level exception
+        # (e.g. ValueError from a gated/chat-only model) falls through to fallbacks
+        # instead of escaping the two-stage pipeline entirely.
+        try:
+            if stage1_config["provider"] == "hf_space":
+                stage1_result = self._try_hf_space_model(stage1_config["model"], data, sector, is_clinical_stage=True)
+            elif stage1_config["provider"] == "hf":
+                stage1_result = self._try_hf_model(stage1_config["model"], stage1_prompt, sector, data, is_clinical_stage=True)
+            elif stage1_config["provider"] == "openrouter":
+                stage1_result = self._try_openrouter_model(stage1_config["model"], stage1_prompt, sector, data)
+            elif stage1_config["provider"] == "vertex":
+                stage1_result = self._try_vertex_model(stage1_config["model"], stage1_prompt, sector, data)
+            else:
+                stage1_result = None
+        except Exception as stage1_exc:
+            logger.warning(f"⚠️  Stage 1 model raised exception: {type(stage1_exc).__name__}: {stage1_exc}")
             stage1_result = None
         
         # If Stage 1 fails, fallback to single-stage
@@ -753,12 +894,16 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
             all_risk_factors.extend([f"[Fraud] {flag}" for flag in fraud_risk_factors])
         
         # Build comprehensive reasoning
-        combined_reasoning = f"**CLINICAL VALIDATION (Stage 1 - MedGemma):**\n{clinical_reasoning}\n\n" \
-                           f"**FRAUD ANALYSIS (Stage 2 - Qwen):**\n{fraud_reasoning}"
-        
+        stage1_label = stage1_config['model'].split('/')[-1]
+        stage2_label = stage2_config['model'].split('/')[-1]
+        combined_reasoning = (
+            f"**CLINICAL VALIDATION (Stage 1 - {stage1_label}):**\n{clinical_reasoning}\n\n"
+            f"**FRAUD ANALYSIS (Stage 2 - {stage2_label}):**\n{fraud_reasoning}"
+        )
+
         # Format model name to show two-stage pipeline
-        stage1_name = stage1_config['model'].split('/')[-1].replace('google-medgemma-4b-it', 'MedGemma-4B-IT')
-        stage2_name = stage2_config['model'].split('/')[-1].replace('Qwen2.5-72B-Instruct', 'Qwen2.5-72B')
+        stage1_name = stage1_label.replace('gpt-oss-120b:free', 'GPT-OSS-120B').replace('medgemma-27b-text-it', 'MedGemma-27B')
+        stage2_name = stage2_config['model'].split('/')[-1].replace('Qwen3-32B', 'Qwen3-32B')
         model_used = f"Two-Stage: {stage1_name} → {stage2_name}"
         
         return {
@@ -819,24 +964,49 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
 
 def _format_model_name(model_name: str, provider: str, is_fallback: bool, fallback_number: Optional[int]) -> str:
     """Format model name for display in UI with provider and fallback information."""
+    mn = model_name.lower()
     display_name = model_name
-    if "Qwen2.5-72B" in model_name:
+
+    # Current generation models
+    if "qwen3-32b" in mn or "qwen3/32b" in mn:
+        display_name = "Qwen3-32B"
+    elif "medgemma-27b" in mn:
+        display_name = "MedGemma-27B"
+    elif "nemotron-3-super" in mn or "nemotron-super" in mn:
+        display_name = "Nemotron-Super-120B"
+    elif "hy3-preview" in mn:
+        display_name = "Tencent Hy3 Preview"
+    elif "gpt-oss-120b" in mn:
+        display_name = "GPT-OSS-120B"
+    elif "gemma-4-31b" in mn:
+        display_name = "Gemma-4-31B"
+    elif "llama-3.3-70b" in mn:
+        display_name = "Llama-3.3-70B"
+    # Legacy models kept for backward-compat display
+    elif "qwen2.5-72b" in mn:
         display_name = "Qwen2.5-72B-Instruct"
-    elif "Qwen2.5-32B" in model_name:
+    elif "qwen2.5-32b" in mn:
         display_name = "Qwen2.5-32B-Instruct"
-    elif "nemotron-nano-12b-v2-vl" in model_name.lower():
+    elif "nemotron-nano-12b-v2-vl" in mn:
         display_name = "Nemotron-2 (12B VL)"
-    elif "nemotron-3-nano-30b" in model_name.lower():
+    elif "nemotron-3-nano-30b" in mn:
         display_name = "Nemotron-3-Nano-30B"
-    elif "deepseek-v3" in model_name.lower():
+    elif "deepseek-v3" in mn:
         display_name = "DeepSeek-V3"
-    elif "deepseek-r1" in model_name.lower():
+    elif "deepseek-r1" in mn:
         display_name = "DeepSeek-R1"
-    elif "llama-3.1-70b" in model_name.lower():
+    elif "llama-3.1-70b" in mn:
         display_name = "Llama-3.1-70B"
-    elif "medgemma" in model_name.lower():
-        display_name = "MedGemma-4B-IT" if "4b" in model_name.lower() else "MedGemma"
-    provider_display = {"hf": "HF Pro", "openrouter": "OpenRouter FREE", "vertex": "Vertex AI"}.get(provider, provider.upper())
+    elif "medgemma" in mn:
+        display_name = "MedGemma-4B-IT" if "4b" in mn else "MedGemma"
+
+    provider_display = {
+        "hf": "HF Inference",
+        "hf_space": "HF Space",
+        "openrouter": "OpenRouter FREE",
+        "vertex": "Vertex AI",
+    }.get(provider, provider.upper())
+
     if is_fallback and fallback_number is not None:
         return f"{display_name} (Fallback #{fallback_number} - {provider_display})"
     return f"{display_name} ({provider_display})"

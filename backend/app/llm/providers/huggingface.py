@@ -35,15 +35,19 @@ class HuggingFaceProvider(BaseLLMProvider):
         self.max_retries = 3
         self.base_delay = 2.0
         
-        # Models that don't support chat_completion
+        # Models that don't support chat_completion — go straight to text_generation
         self.models_no_chat = [
             "instruction-pretrain/finance-Llama3-8B",
             "meta-llama/Llama-3.1-8B-Instruct",
-            "mistralai/Mistral-7B-Instruct-v0.2"
+            "mistralai/Mistral-7B-Instruct-v0.2",
         ]
-        
-        # Models that ONLY support chat_completion (never use text_generation)
-        self.models_chat_only = ["qwen", "Qwen"]
+
+        # Models that ONLY support chat_completion — NEVER fall back to text_generation
+        # Qwen3-32B and MedGemma-27B are both instruction-tuned, chat-only models.
+        self.models_chat_only = [
+            "Qwen", "qwen",          # Qwen3-32B, Qwen2.5-* series
+            "medgemma", "MedGemma",  # google/medgemma-27b-text-it
+        ]
     
     async def generate(
         self,

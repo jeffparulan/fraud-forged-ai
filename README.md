@@ -65,16 +65,19 @@ cd ..
 - **RAG**: Pinecone cloud vector database with fraud pattern matching
 - **Infrastructure**: Terraform-managed Google Cloud Run (free tier optimized)
 
-### AI Models (Cost-Optimized 2025)
+### AI Models (May 2026)
 
 | Sector | Model | Provider | Purpose |
 |--------|-------|----------|----------|
-| Banking | Qwen2.5-72B-Instruct | HF Pro | Financial reasoning |
-| Medical | MedGemma-4B-IT → Qwen2.5-72B | HF Inference | Clinical validation → Fraud analysis |
-| E-commerce | NVIDIA Nemotron-2 (12B VL) | OpenRouter | Marketplace fraud detection |
-| Supply Chain | NVIDIA Nemotron-2 (12B VL) | OpenRouter | Logistics fraud detection |
+| Banking | Qwen3-32B | HF Inference | Financial reasoning, AML patterns |
+| Medical | MedGemma-27B → Qwen3-32B | HF Inference (Featherless AI) | Clinical validation → Fraud analysis |
+| E-commerce | Nemotron-Super-120B | OpenRouter FREE | Marketplace fraud detection |
+| Supply Chain | Nemotron-Super-120B | OpenRouter FREE | Logistics fraud detection |
 
-**Fallbacks**: Qwen2.5-72B (HF Pro), NVIDIA Nemotron-3-Nano-30B (OpenRouter), Llama-3.1-70B (OpenRouter)
+**Fallback chains** (all OpenRouter FREE):
+- Banking: GPT-OSS-120B → Tencent Hy3 Preview → Llama-3.3-70B
+- Medical: GPT-OSS-120B (if MedGemma gated) → Tencent Hy3 Preview → Nemotron-Super-120B
+- E-commerce / Supply Chain: GPT-OSS-120B → Tencent Hy3 Preview → Gemma-4-31B
 
 [**View Interactive Architecture Diagram →**](https://fraud-forge-frontend-203639324676.us-central1.run.app/docs/fraud-diagram.html)
 
@@ -84,10 +87,10 @@ cd ..
 
 | Industry | Model | Capability |
 |----------|-------|------------|
-| 🏦 Banking | Qwen2.5-72B-Instruct (HF Pro) | Transaction analysis with financial reasoning |
-| 🏥 Medical | MedGemma-4B-IT → Qwen2.5-72B | Clinical validation + fraud pattern detection |
-| 🛒 E-commerce | NVIDIA Nemotron-2 (12B VL) | Marketplace fraud detection |
-| 🚚 Supply Chain | NVIDIA Nemotron-2 (12B VL) | Logistics compliance fraud detection |
+| 🏦 Banking | Qwen3-32B (HF Inference) | Transaction analysis with financial reasoning |
+| 🏥 Medical | MedGemma-27B → Qwen3-32B (HF Inference) | Clinical validation + fraud pattern detection |
+| 🛒 E-commerce | Nemotron-Super-120B (OpenRouter FREE) | Marketplace fraud detection |
+| 🚚 Supply Chain | Nemotron-Super-120B (OpenRouter FREE) | Logistics compliance fraud detection |
 
 ### Intelligent Routing
 
@@ -267,7 +270,7 @@ Response:
   "fraud_score": 87,
   "risk_level": "high",
   "explanation": "...",
-  "model_used": "Qwen/Qwen2.5-72B-Instruct"
+  "model_used": "Qwen3-32B (HF Inference)"
 }
 ```
 

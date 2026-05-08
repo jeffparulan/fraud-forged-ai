@@ -115,9 +115,23 @@ def score_ecommerce_fraud(data: Dict[str, Any]) -> float:
 
     product_details = str(data.get("product_details", "")).lower()
     description = str(data.get("description", product_details)).lower()
+    combined_text = f"{product_details} {description}"
     if "stock photo" in description or "vague" in description or len(description) < 20:
         score += 15
-    elif "authentic" in description or "verified" in description:
+    elif "authentic" in combined_text or "verified seller" in combined_text:
         score -= 5
+
+    medium_signal_keywords = [
+        "shipping delays", "delays reported", "mixed reviews", "moderate discount",
+        "moderate concerns", "some concerns", "slow response", "relatively new seller",
+        "email not verified", "not verified", "new seller",
+    ]
+    medium_hits = sum(1 for kw in medium_signal_keywords if kw in combined_text)
+    if medium_hits >= 3:
+        score += 35
+    elif medium_hits == 2:
+        score += 25
+    elif medium_hits == 1:
+        score += 15
 
     return max(0, min(100, score))

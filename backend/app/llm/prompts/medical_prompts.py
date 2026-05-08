@@ -38,20 +38,21 @@ SCORING GUIDELINES (STRICT - be conservative and flag suspicious claims):
 - Multiple red flags combined: ALWAYS use HIGH (60-85) or CRITICAL (85-100) scores
 - IMPORTANT: If 3+ red flags are present (e.g., OFAC country + upcoding + excessive amount), the score MUST be 70+ (HIGH) or 85+ (CRITICAL). Do NOT assign LOW scores when multiple risk indicators are present.
 
-REQUIRED: Provide a comprehensive fraud analysis with:
-1. FRAUD_SCORE: A number from 0-100 (be STRICT - multiple red flags should result in HIGH scores of 60-100)
-2. RISK_LEVEL: LOW, MEDIUM, HIGH, or CRITICAL
-3. RISK_FACTORS: List 3-5 specific red flags (e.g., OFAC country, unbundling, upcoding, procedure mismatch, excessive amount)
-4. REASONING: Write 3-4 complete sentences explaining:
-   - WHY this claim is suspicious (cite ALL red flags: country, procedure codes, diagnosis codes, billing patterns)
-   - WHAT billing patterns indicate fraud (be specific about the ${data.get('claim_amount')} amount and procedure/diagnosis relationships)
-   - HOW severe the fraud risk is (combine all factors - multiple red flags = HIGH/CRITICAL risk)
-   
-Format exactly as:
-FRAUD_SCORE: [number]
-RISK_LEVEL: [level]
+REQUIRED OUTPUT — use EXACTLY this format, no deviations:
+FRAUD_SCORE: [integer 0-100, NOT a percentage sign, NOT a range]
+RISK_LEVEL: [LOW | MEDIUM | HIGH | CRITICAL]
 RISK_FACTORS: [factor1, factor2, factor3, factor4, factor5]
-REASONING: [Write your detailed analysis here. Reference ALL specific red flags: the claim amount (${data.get('claim_amount')}), the procedure codes ({data.get('procedure_codes')}), diagnosis codes ({data.get('diagnosis_codes')}), and any location-based risks. Be thorough and specific. If multiple red flags are present, assign a HIGH or CRITICAL score.]
+REASONING: [3-4 complete sentences citing ALL red flags: the claim amount (${data.get('claim_amount')}), the procedure codes ({data.get('procedure_codes')}), diagnosis codes ({data.get('diagnosis_codes')}), and any location-based risks. Be thorough and specific.]
+
+SCORE CALIBRATION (mandatory — ignore these and your response will be discarded):
+- 3 or more red flags present → FRAUD_SCORE must be 70-100 (HIGH or CRITICAL)
+- 7+ procedure codes on a single claim → upcoding pattern, FRAUD_SCORE must be at least 70
+- Claim amount > $50,000 with 5+ procedures in single visit → FRAUD_SCORE must be at least 65
+- Provider history "flagged" or "suspended" → add at least 30 to FRAUD_SCORE
+- Phantom billing language ("no records on claimed dates", "no visits") → FRAUD_SCORE must be at least 75
+- If you list risk factors, your FRAUD_SCORE MUST reflect them numerically.
+  Example of WRONG output: risk_factors=["upcoding","flagged provider","high amount"] with FRAUD_SCORE=50.
+  Correct: that combination demands FRAUD_SCORE >= 70.
 """
 
 
@@ -179,22 +180,43 @@ Your job is to analyze this claim for FRAUD PATTERNS, BILLING ANOMALIES, and COS
 
 """
     prompt += """
-**CRITICAL: You MUST respond in valid JSON format. The fraud_score MUST be a number between 0-100 (NOT a percentage).**
+**CRITICAL OUTPUT RULES — DO NOT IGNORE:**
 
-**Response Format (JSON):**
+You MUST output BOTH a JSON block AND a plain-text FRAUD_SCORE line. Both are required.
+The fraud_score MUST be a single integer 0-100 (no percent sign, no range, no decimals).
+
+**Response Format (REQUIRED — output exactly this, in this order):**
+
 ```json
 {
-  "fraud_score": <0-100>,
+  "fraud_score": <integer 0-100>,
   "risk_level": "<LOW|MEDIUM|HIGH|CRITICAL>",
-  "reasoning": "<Detailed fraud analysis>",
-  "risk_factors": ["<List of specific fraud indicators>"],
-  "fraud_type": "<Upcoding/Unbundling/Phantom/Kickback/None>",
-  "recommended_action": "<Approve/Flag for Review/Deny/Investigate>"
+  "reasoning": "<3-4 sentence detailed fraud analysis>",
+  "risk_factors": ["<specific fraud indicator 1>", "<indicator 2>", "<indicator 3>"],
+  "fraud_type": "<Upcoding|Unbundling|Phantom Billing|Kickback|Diagnosis-Procedure Mismatch|None>",
+  "recommended_action": "<Approve|Flag for Review|Deny|Investigate>"
 }
 ```
 
-**Scoring Guidelines:** 0-25 LOW, 26-50 MEDIUM, 51-75 HIGH, 76-100 CRITICAL.
-Factor in Stage 1 clinical score heavily. Low clinical legitimacy (< 50) should raise fraud score significantly.
+FRAUD_SCORE: <integer 0-100>
+RISK_LEVEL: <LOW|MEDIUM|HIGH|CRITICAL>
 
-Provide your fraud analysis:"""
+**Risk Level Thresholds (STRICT):**
+- 0-29 LOW    — Clean claim, no red flags
+- 30-59 MEDIUM — 1-2 minor concerns
+- 60-84 HIGH   — Multiple red flags, likely fraud
+- 85-100 CRITICAL — Severe fraud indicators, immediate investigation
+
+**MANDATORY SCORE CALIBRATION (your output is discarded if you violate these):**
+- Stage 1 clinical legitimacy < 50 → fraud_score MUST be at least 60
+- Provider history "flagged" or "suspended" → add at least 30 to fraud_score
+- Claim amount > $50,000 with 5+ procedures in single visit → fraud_score MUST be at least 65
+- 7+ procedure codes on a single claim → upcoding pattern, fraud_score MUST be at least 70
+- 3 or more red flags listed in risk_factors → fraud_score MUST be 70-100 (HIGH/CRITICAL)
+- Phantom billing indicators (e.g. "no records on claimed dates") → fraud_score MUST be at least 75
+- If you list risk factors, your fraud_score MUST reflect them numerically.
+  Example of WRONG output: risk_factors=["upcoding","flagged provider","high amount"] with fraud_score=50.
+  Correct: that combination demands fraud_score >= 70.
+
+Now provide your fraud analysis (JSON block first, then FRAUD_SCORE / RISK_LEVEL lines):"""
     return prompt

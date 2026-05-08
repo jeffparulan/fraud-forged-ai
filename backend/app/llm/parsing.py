@@ -163,22 +163,42 @@ def _parse_fraud_response(text: str) -> dict:
             fraud_score = int(score_match.group(1))
             logger.info(f"✅ Extracted fraud_score from FRAUD_SCORE pattern: {fraud_score}")
         else:
-            pct_matches = re.findall(r'(\d+)\s*%', text)
-            valid_scores = [int(m) for m in pct_matches if 0 <= int(m) <= 100]
-            fraud_score = valid_scores[0] if valid_scores else 50
-            if valid_scores:
-                logger.info(f"✅ Extracted fraud_score from percentage: {fraud_score}")
-            else:
+            # Try score in a clearly scored context before resorting to bare percentages.
+            # Bare "(\d+)%" matches are unreliable — they grab price variances, delivery
+            # variances, etc. from the narrative body and produce wildly wrong scores.
+            score_context_patterns = [
+                # "overall fraud score: 72" / "risk score: 72" / "score: 72"
+                r'(?:overall\s+)?(?:fraud|risk)\s+score["\']?\s*:\s*(\d+)',
+                # "[score: 72]" / "(score 72)"
+                r'[\[\(]score[:\s]+(\d+)[\]\)]',
+                # "assigns a score of 72" / "gives a score of 72"
+                r'(?:assigns?|gives?|rate[sd]?)\s+(?:a\s+)?score\s+of\s+(\d+)',
+            ]
+            for pat in score_context_patterns:
+                ctx_match = re.search(pat, text, re.IGNORECASE)
+                if ctx_match:
+                    candidate = int(ctx_match.group(1))
+                    if 0 <= candidate <= 100:
+                        fraud_score = candidate
+                        logger.info(f"✅ Extracted fraud_score from score context: {fraud_score}")
+                        break
+
+            if fraud_score is None:
+                # Last resort: look for bare "score X" patterns
                 for pattern in [r'["\']?score["\']?\s*:\s*(\d+)', r'score\s+of\s+(\d+)', r'score\s+(\d+)']:
                     match = re.search(pattern, text, re.IGNORECASE)
                     if match:
                         candidate = int(match.group(1))
                         if 0 <= candidate <= 100:
                             fraud_score = candidate
+                            logger.info(f"✅ Extracted fraud_score from score pattern: {fraud_score}")
                             break
-                if fraud_score is None:
-                    fraud_score = 50
-                    logger.warning(f"⚠️  Could not extract fraud_score, using default: {fraud_score}")
+
+            if fraud_score is None:
+                # Do NOT use bare percentages — they pick up variance numbers (e.g. "22% price
+                # variance") and silently produce a completely wrong fraud score.
+                fraud_score = 50
+                logger.warning("⚠️  Could not extract fraud_score from model response; defaulting to 50")
 
     fraud_score = max(0, min(100, int(fraud_score)))
     risk_level = get_risk_level(fraud_score)
