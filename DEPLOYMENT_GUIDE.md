@@ -194,7 +194,7 @@ gcloud logging read "resource.type=cloud_run_revision" --limit 50
 
 #### 4. API Key Errors
 - Verify keys are correct in `.env` and `terraform.tfvars`
-- Check API key permissions (HF Pro subscription, Pinecone free tier limits)
+- Check API key permissions (HF token with model access accepted, Pinecone free tier limits, OpenRouter key active)
 - Ensure keys don't have extra spaces or quotes
 
 #### 5. CORS Errors

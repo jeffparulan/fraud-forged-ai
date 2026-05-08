@@ -54,18 +54,16 @@ SCORING GUIDELINES (STRICT - be conservative and flag suspicious transactions):
 - Multiple red flags combined: ALWAYS use HIGH (60-85) or CRITICAL (85-100) scores
 - IMPORTANT: If 3+ red flags are present (e.g., OFAC country + VPN + unverified + new account), the score MUST be 70+ (HIGH) or 85+ (CRITICAL). Do NOT assign LOW scores when multiple risk indicators are present.
 
-REQUIRED: Provide a comprehensive fraud analysis with:
-1. FRAUD_SCORE: A number from 0-100 (be STRICT - multiple red flags should result in HIGH scores of 60-100)
-2. RISK_LEVEL: LOW, MEDIUM, HIGH, or CRITICAL
-3. RISK_FACTORS: List 3-5 specific red flags (e.g., OFAC country, VPN, unverified KYC, new account, high velocity)
-4. REASONING: Write 3-4 complete sentences explaining:
-   - WHY this transaction is flagged (cite ALL red flags: country, VPN, KYC, account age, velocity, amount)
-   - WHAT patterns indicate fraud (be specific about the ${data.get('amount')} transaction and all risk indicators)
-   - HOW severe the risk is (combine all factors - multiple red flags = HIGH/CRITICAL risk)
-   
-Format exactly as:
-FRAUD_SCORE: [number]
-RISK_LEVEL: [level]
+REQUIRED OUTPUT — use EXACTLY this format, no deviations:
+FRAUD_SCORE: [integer 0-100, NOT a percentage sign, NOT a range]
+RISK_LEVEL: [LOW | MEDIUM | HIGH | CRITICAL]
 RISK_FACTORS: [factor1, factor2, factor3, factor4, factor5]
-REASONING: [Write your detailed analysis here. Reference ALL specific red flags: the source country ({data.get('source_country')}), destination country ({data.get('destination_country')}), the IP address ({data.get('ip_address', 'N/A')}), KYC status ({data.get('kyc_verified')}), account age ({data.get('account_age_days')} days), and transaction velocity. Be thorough and specific. If multiple red flags are present, assign a HIGH or CRITICAL score.]
+REASONING: [3-4 complete sentences citing ALL red flags: source/destination country, IP address, KYC status, account age, transaction velocity. Explain severity.]
+
+SCORE CALIBRATION (mandatory — ignore these and your response will be discarded):
+- 3 or more red flags present → FRAUD_SCORE must be 70-100 (HIGH or CRITICAL)
+- Unverified KYC + new account (< 7 days) → add 40-55 points combined
+- High velocity (> 10 tx) → add 15-25 points
+- Your FRAUD_SCORE MUST numerically reflect every risk factor you list
+- FRAUD_SCORE: 50 when you identified multiple clear red flags is WRONG
 """

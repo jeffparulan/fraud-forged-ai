@@ -102,10 +102,10 @@ export default function Footer() {
 
         <div className="border-t border-white/10 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            © 2025 FraudForge AI. Open source under MIT License.
+            © 2026 FraudForge AI. Open source under MIT License.
           </p>
           <p className="text-gray-400 text-sm mt-4 md:mt-0">
-            Built with ❤️ using GenAI • LangGraph • Vertex AI • Hugging Face • Pinecone • MCP
+            Built with ❤️ using GenAI • LangGraph • HF Inference • OpenRouter FREE • Pinecone • MCP
           </p>
         </div>
       </div>

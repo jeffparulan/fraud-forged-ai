@@ -32,10 +32,10 @@ export default function Architecture() {
       category: 'AI Models',
       icon: Zap,
       technologies: [
-        { name: 'Qwen2.5-72B-Instruct', description: 'Banking & crypto (HF Pro - Financial Reasoning)', color: 'text-yellow-400' },
-        { name: 'Google MedGemma-4B-IT + Qwen2.5-72B', description: 'Medical (HF Inference API - Two-Stage: Clinical → Fraud)', color: 'text-emerald-400' },
-        { name: 'NVIDIA Nemotron-2 (12B VL)', description: 'E-commerce (OpenRouter - Marketplace Fraud)', color: 'text-purple-400' },
-        { name: 'NVIDIA Nemotron-2 (12B VL)', description: 'Supply chain (OpenRouter - Logistics Fraud)', color: 'text-orange-400', key: 'nemotron-2-supply' }
+        { name: 'Qwen3-32B', description: 'Banking & crypto (HF Inference — Financial Reasoning)', color: 'text-yellow-400' },
+        { name: 'MedGemma-27B → Qwen3-32B', description: 'Medical (HF Inference — Two-Stage: Clinical → Fraud)', color: 'text-emerald-400' },
+        { name: 'Nemotron-Super-120B', description: 'E-commerce (OpenRouter FREE — Marketplace Fraud)', color: 'text-purple-400' },
+        { name: 'Nemotron-Super-120B', description: 'Supply chain (OpenRouter FREE — Logistics Fraud)', color: 'text-orange-400' }
       ]
     },
     {

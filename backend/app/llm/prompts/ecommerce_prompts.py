@@ -71,15 +71,16 @@ SCORING GUIDELINES (STRICT - be conservative and flag suspicious transactions):
 - Multiple red flags combined: ALWAYS use HIGH (60-85) or CRITICAL (85-100) scores
 - IMPORTANT: If 3+ red flags are present, the score MUST be 70+ (HIGH) or 85+ (CRITICAL).
 
-REQUIRED: Provide a comprehensive fraud analysis with:
-1. FRAUD_SCORE: A number from 0-100 (be STRICT - multiple red flags should result in HIGH scores of 60-100)
-2. RISK_LEVEL: LOW, MEDIUM, HIGH, or CRITICAL
-3. RISK_FACTORS: List 3-5 specific red flags (e.g., high-risk country, price discrepancy, VPN, unverified email, negative reviews)
-4. REASONING: Write 3-4 complete sentences explaining WHY this order is suspicious, WHAT fraud patterns are present, HOW likely this is fraudulent.
-   
-Format exactly as:
-FRAUD_SCORE: [number]
-RISK_LEVEL: [level]
+REQUIRED OUTPUT — use EXACTLY this format, no deviations:
+FRAUD_SCORE: [integer 0-100, NOT a percentage sign, NOT a range]
+RISK_LEVEL: [LOW | MEDIUM | HIGH | CRITICAL]
 RISK_FACTORS: [factor1, factor2, factor3, factor4, factor5]
-REASONING: [Write your detailed analysis here. Reference ALL specific red flags. Be thorough and specific.]
+REASONING: [3-4 complete sentences explaining WHY this order is suspicious, WHAT fraud patterns are present, HOW likely this is fraudulent.]
+
+SCORE CALIBRATION (mandatory — ignore these and your response will be discarded):
+- 3 or more red flags present → FRAUD_SCORE must be 70-100 (HIGH or CRITICAL)
+- Unverified email + new seller → add 35-50 points combined
+- High velocity transactions → add 20-30 points
+- Your FRAUD_SCORE MUST numerically reflect every risk factor you list
+- FRAUD_SCORE: 50 when you identified multiple clear red flags is WRONG
 """

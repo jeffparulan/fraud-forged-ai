@@ -11,7 +11,7 @@ export default function UseCases() {
       title: 'Banking & Crypto Exchanges',
       description: 'Detect Rug Pulls, AML Risks, ATOs & Synthetics in Seconds—Banking-Proof Your Ops',
       challenge: 'Need enterprise-grade fraud detection but can\'t afford million-dollar platforms',
-      solution: 'FraudForge AI delivers Qwen2.5-72B (HF Pro) powered fraud detection with advanced financial reasoning for banking and crypto at cost-optimized pricing.',
+      solution: 'FraudForge AI delivers Qwen3-32B (HF Inference) powered fraud detection with advanced financial reasoning for banking and crypto — no expensive licensing required.',
       results: [
         'Escape $500K–$3M+ annual licensing and consultant lock-in.',
         'Streamlined deployment with comprehensive guide',
@@ -25,7 +25,7 @@ export default function UseCases() {
       title: 'Healthcare Providers',
       description: 'Catch fraudulent claims before they\'re paid',
       challenge: 'Billions lost annually to medical billing fraud and false claims',
-      solution: 'Two-Stage Pipeline (HF Inference API): Google MedGemma-4B-IT validates clinical legitimacy (diagnosis-procedure compatibility), then Qwen2.5-72B detects fraud patterns (upcoding, unbundling, billing anomalies).',
+      solution: 'Two-Stage Pipeline: MedGemma-27B (HF Inference) validates clinical legitimacy (diagnosis-procedure compatibility), then Qwen3-32B (HF Inference) detects fraud patterns (upcoding, unbundling, billing anomalies).',
       results: [
         'Reduce fraud losses by 85%+',
         'Process 10K+ claims per day',
@@ -39,7 +39,7 @@ export default function UseCases() {
       title: 'E-commerce Platforms',
       description: 'Real-time seller/buyer fraud screening',
       challenge: 'Fake sellers, counterfeit products, and review manipulation damage trust',
-      solution: 'NVIDIA Nemotron-2 (12B VL) (OpenRouter) uses multimodal understanding to detect scam patterns, refund abuse, and seller manipulation',
+      solution: 'Nemotron-Super-120B (OpenRouter FREE, Finance #24, 1M context) uses 120B hybrid MoE reasoning to detect scam patterns, refund abuse, and seller manipulation',
       results: [
         '+45-60% detection gain on scam listings',
         'Identify fake review patterns',
@@ -53,7 +53,7 @@ export default function UseCases() {
       title: 'Supply Chain & Procurement',
       description: 'Detect supplier fraud and kickback schemes',
       challenge: 'Ghost suppliers, inflated invoices, and kickback schemes cost billions annually',
-      solution: 'NVIDIA Nemotron-2 (12B VL) (OpenRouter) analyzes supplier patterns, pricing anomalies, logistics, and documentation gaps with specialized fraud detection',
+      solution: 'Nemotron-Super-120B (OpenRouter FREE, Finance #24, 1M context window) analyzes supplier patterns, pricing anomalies, logistics, and documentation gaps with long-context 120B hybrid MoE reasoning',
       results: [
         'Prevent ghost supplier scams',
         'Detect price manipulation',

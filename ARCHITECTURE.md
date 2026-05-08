@@ -18,8 +18,8 @@ FastAPI Backend
 ├── Validation (app/core/validation.py)
 │   └── LLM vs rule-based validation
 └── LLM Providers (app/llm/providers/)
-    ├── Hugging Face (Qwen, MedGemma)
-    └── OpenRouter (NVIDIA Nemotron)
+    ├── Hugging Face (Qwen3-32B — Banking + Medical Stage 2; MedGemma-27B — Medical Stage 1)
+    └── OpenRouter (Nemotron-Super-120B — E-com/Supply Chain; GPT-OSS-120B — fallbacks)
 ```
 
 ## Directory Structure
@@ -45,10 +45,10 @@ backend/app/
 
 ### 1. Route Model
 Select sector-specific LLM:
-- Banking → Qwen2.5-72B (financial reasoning)
-- Medical → Two-stage: MedGemma-4B → Qwen2.5 (clinical validation + fraud)
-- E-commerce → NVIDIA Nemotron (marketplace fraud)
-- Supply Chain → NVIDIA Nemotron (logistics fraud)
+- Banking → Qwen3-32B (HF Inference — financial reasoning, AML)
+- Medical → Two-stage: MedGemma-27B (HF Inference/Featherless AI — clinical validation) → Qwen3-32B (HF Inference — fraud analysis)
+- E-commerce → Nemotron-Super-120B (OpenRouter FREE — marketplace fraud)
+- Supply Chain → Nemotron-Super-120B (OpenRouter FREE — logistics fraud)
 
 ### 2. Retrieve Context
 Query Pinecone for similar fraud patterns using embeddings.
@@ -67,14 +67,19 @@ Build human-readable explanation with risk factors.
 
 | Sector | Model | Provider | Cost |
 |--------|-------|----------|------|
-| Banking | Qwen2.5-72B | HF Pro | $9/mo |
-| Medical | MedGemma-4B → Qwen2.5 | HF Inference | Free |
-| E-commerce | Nemotron-2 (12B) | OpenRouter | Free |
-| Supply Chain | Nemotron-2 (12B) | OpenRouter | Free |
+| Banking | Qwen3-32B | HF Inference | Pay-per-token |
+| Medical | MedGemma-27B → Qwen3-32B | HF Inference (Featherless AI) | Pay-per-token |
+| E-commerce | Nemotron-Super-120B | OpenRouter FREE | Free |
+| Supply Chain | Nemotron-Super-120B | OpenRouter FREE | Free |
+
+**Fallback chains** (all OpenRouter FREE):
+- Banking: GPT-OSS-120B → Tencent Hy3 Preview → Llama-3.3-70B
+- Medical: GPT-OSS-120B (if MedGemma gated) → Tencent Hy3 Preview → Nemotron-Super-120B
+- E-commerce / Supply Chain: GPT-OSS-120B → Tencent Hy3 Preview → Gemma-4-31B
 
 ## Validation Logic
 
-**Medical**: Trust two-stage pipeline unless extreme discrepancy (rule > 75 AND llm < 25)
+**Medical**: MedGemma-27B Stage 1 (clinical) → Qwen3-32B Stage 2 (fraud); trust two-stage pipeline unless extreme discrepancy (rule > 75 AND llm < 25)
 
 **Others**:
 - Reject if: rule < 10 AND llm > 85 (false positive)
