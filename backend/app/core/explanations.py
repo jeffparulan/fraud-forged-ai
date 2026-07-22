@@ -5,26 +5,73 @@ from typing import Dict, Any
 
 
 def explain_banking(data: Dict[str, Any], score: float) -> str:
+    """Build explanation from the fields the banking form actually sends (plus legacy aliases)."""
     factors = []
-    amount = data.get("amount", 0)
+
+    try:
+        amount = float(data.get("amount", 0) or 0)
+    except (ValueError, TypeError):
+        amount = 0.0
     if amount > 10000:
         factors.append(f"unusually high transaction amount (${amount:,.2f})")
-    location = data.get("location", "")
-    if location:
-        factors.append(f"transaction from {location}")
-    device = data.get("device", "")
-    if "new" in str(device).lower():
+
+    # Prefer form fields; fall back to legacy location/device/time keys used in older tests
+    source = data.get("source_country") or data.get("location") or ""
+    dest = data.get("destination_country") or ""
+    if source:
+        factors.append(f"transaction from {source}" if not data.get("source_country") else f"source country {source}")
+    if dest and str(dest) != str(source):
+        factors.append(f"destination country {dest}")
+
+    ip = str(data.get("ip_address", "") or data.get("device", ""))
+    if "tor" in ip.lower() or "vpn" in ip.lower():
+        factors.append(f"anonymizing network ({ip})")
+    elif "new" in ip.lower():
         factors.append("new or unrecognized device")
-    time = data.get("time", "")
+
+    time = data.get("transaction_time") or data.get("time") or ""
     if time:
         factors.append(f"transaction at {time}")
-    user_age = data.get("user_age_days", 365)
-    if user_age < 30:
-        factors.append(f"account age only {user_age} days")
+
+    try:
+        account_age = int(
+            data.get("account_age_days", data.get("user_age_days", 365)) or 365
+        )
+    except (ValueError, TypeError):
+        account_age = 365
+    if account_age < 30:
+        factors.append(f"account age only {account_age} days")
+
+    try:
+        velocity = int(data.get("transaction_velocity", 0) or 0)
+    except (ValueError, TypeError):
+        velocity = 0
+    if velocity > 10:
+        factors.append(f"high 24h velocity ({velocity} txns)")
+
+    kyc = data.get("kyc_verified", None)
+    if kyc is not None:
+        if isinstance(kyc, str):
+            kyc = kyc.strip().lower() in ("true", "1", "yes")
+        if not kyc:
+            factors.append("KYC not verified")
+        else:
+            factors.append("KYC verified (mitigating)")
+
+    receiver = str(data.get("receiver_wallet", ""))
+    if "000000000000000000000000" in receiver.lower():
+        factors.append("receiver is a burn/null address")
 
     if factors:
         base = "Red flags detected: " + ", ".join(factors) + "."
-        context = " These indicators suggest potential fraudulent activity requiring further investigation."
+        if score >= 85:
+            context = " These indicators suggest potential fraudulent activity requiring further investigation."
+        elif score >= 60:
+            context = " Combined signals indicate HIGH risk."
+        elif score >= 30:
+            context = " Combined signals indicate MEDIUM risk — monitor closely."
+        else:
+            context = " Mitigating factors currently outweigh most red flags."
         return base + context
 
     return (

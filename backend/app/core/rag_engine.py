@@ -80,28 +80,41 @@ class RAGEngine:
     
     def query_similar_patterns(self, sector: str, query_text: str, n_results: int = 5) -> Dict[str, Any]:
         """Query similar fraud patterns from Pinecone."""
+        empty = {
+            "context": "No similar patterns found (Pinecone not initialized).",
+            "count": 0,
+            "patterns": [],
+            "top_score": 0.0,
+            "avg_score": 0.0,
+            "embedding_source": "none",
+        }
         if not self.initialized or not self.index:
             logger.warning(f"[Pinecone] Not initialized for namespace '{self.namespace}', returning empty results")
-            return {
-                "context": "No similar patterns found (Pinecone not initialized).",
-                "count": 0,
-                "patterns": [],
-            }
+            return empty
 
         try:
             logger.info(f"🔍 [Pinecone] Querying namespace '{self.namespace}' for sector '{sector}' (top_k={n_results})")
             query_embedding = self._embedding_generator.generate(query_text)
-            logger.debug(f"[Pinecone] Embedding generated (dimensions: {len(query_embedding)})")
+            embedding_source = getattr(self._embedding_generator, "last_source", "unknown")
+            logger.debug(f"[Pinecone] Embedding generated (dimensions: {len(query_embedding)}, source={embedding_source})")
             return query_similar_patterns(
                 self.index,
                 self.namespace,
                 sector,
                 query_embedding,
                 n_results,
+                embedding_source=embedding_source,
             )
         except Exception as e:
             logger.error(f"❌ [Pinecone] Query error in namespace '{self.namespace}': {e}", exc_info=True)
-            return {"context": "Error retrieving patterns.", "count": 0, "patterns": []}
+            return {
+                "context": "Error retrieving patterns.",
+                "count": 0,
+                "patterns": [],
+                "top_score": 0.0,
+                "avg_score": 0.0,
+                "embedding_source": "error",
+            }
     
     def get_collection_count(self) -> int:
         """Get total number of fraud patterns in Pinecone namespace"""

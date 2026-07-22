@@ -25,3 +25,8 @@ medgemma_url       = ""
 gcp_api_key       = ""
 pinecone_index_name = "fraudforge-master"
 
+# Security (recommended settings shown)
+use_secret_manager = true                  # store keys in GCP Secret Manager (~$0.06/secret/mo); false = plain env vars
+allowed_origins    = "*"                   # tighten to your frontend URL after first deploy, e.g. "https://fraud-forge-frontend-xxxx.run.app"
+fraudforge_api_key = ""                    # optional: require X-API-Key on /api/detect (empty = open demo)
+

@@ -218,7 +218,7 @@ def _search_fraud_patterns(sector: Optional[str], query: Optional[str]) -> Dict[
 
     try:
         # Import RAG engine for pattern search (uses 'rag' namespace)
-        from app.rag_engine import RAGEngine
+        from app.core.rag_engine import RAGEngine
 
         # Initialize RAG engine if not already done
         if not hasattr(_search_fraud_patterns, "_rag_engine"):

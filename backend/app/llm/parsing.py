@@ -58,6 +58,85 @@ def clean_reasoning(text: str) -> str:
     return text
 
 
+# Placeholder / template junk the models often echo from the prompt
+_PLACEHOLDER_FACTOR_RE = re.compile(
+    r'^(?:'
+    r'factor\s*\d+'
+    r'|indicator\s*\d+'
+    r'|<[^>]+>'
+    r'|analysis\s+pending'
+    r'|n/?a'
+    r'|none'
+    r'|null'
+    r'|todo'
+    r'|tbd'
+    r'|placeholder'
+    r'|specific fraud indicator\s*\d*'
+    r'|list of clinical red flags.*'
+    r')$',
+    re.IGNORECASE,
+)
+
+
+def sanitize_risk_factors(factors) -> list:
+    """
+    Drop prompt-template echoes and empty junk so the UI never shows
+    "Analysis pending" or "[factor1, factor2, ...]".
+    """
+    if not factors:
+        return []
+    if isinstance(factors, str):
+        factors = [factors]
+
+    cleaned = []
+    for raw in factors:
+        if raw is None:
+            continue
+        item = str(raw).strip().strip('[](){}"\'')
+        item = item.strip(' ,;')
+        if not item or len(item) < 3:
+            continue
+        if _PLACEHOLDER_FACTOR_RE.match(item):
+            continue
+        if re.fullmatch(r'\[?\s*factor\s*\d+\s*\]?', item, re.IGNORECASE):
+            continue
+        cleaned.append(item)
+
+    seen = set()
+    unique = []
+    for item in cleaned:
+        key = item.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
+
+def _extract_risk_factors_from_text(text: str) -> list:
+    """Parse RISK_FACTORS from free-text or JSON-ish LLM output."""
+    json_arr = re.search(
+        r'["\']?risk[_\s]?factors["\']?\s*:\s*(\[[^\]]*\])',
+        text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if json_arr:
+        try:
+            parsed = json.loads(json_arr.group(1))
+            return sanitize_risk_factors(parsed)
+        except json.JSONDecodeError:
+            pass
+
+    line_match = re.search(r'RISK[_\s]FACTORS:\s*([^\n]+)', text, re.IGNORECASE)
+    if line_match:
+        raw = line_match.group(1).strip()
+        if raw.startswith('[') and ']' in raw:
+            raw = raw[1:raw.index(']')]
+        parts = [p.strip() for p in re.split(r',(?![^\(]*\))', raw)]
+        return sanitize_risk_factors(parts)
+
+    return []
+
+
 def parse_model_response(
     text: str,
     sector: str,
@@ -91,7 +170,7 @@ def _parse_clinical_response(text: str) -> dict:
             return {
                 "clinical_legitimacy_score": parsed_json.get("clinical_legitimacy_score", 50),
                 "reasoning": parsed_json.get("reasoning", text),
-                "risk_factors": parsed_json.get("risk_factors", []),
+                "risk_factors": sanitize_risk_factors(parsed_json.get("risk_factors", [])),
                 "diagnosis_procedure_match": parsed_json.get("diagnosis_procedure_match", "Unknown"),
                 "provider_specialty_appropriate": parsed_json.get("provider_specialty_appropriate", "Unknown"),
                 "medical_necessity": parsed_json.get("medical_necessity", "Unknown")
@@ -122,17 +201,31 @@ def _parse_clinical_response(text: str) -> dict:
     reasoning_match = re.search(r'["\']?reasoning["\']?\s*:\s*["\'](.+?)["\']', text, re.IGNORECASE | re.DOTALL)
     reasoning = reasoning_match.group(1).strip() if reasoning_match else text
 
-    factors_match = re.search(r'["\']?risk[_\s]factors["\']?\s*:\s*\[([^\]]+)\]', text, re.IGNORECASE)
-    risk_factors = [f.strip(' "\'') for f in factors_match.group(1).split(',')] if factors_match else []
-
     return {
         "clinical_legitimacy_score": clinical_score,
         "reasoning": clean_reasoning(reasoning),
-        "risk_factors": risk_factors,
+        "risk_factors": _extract_risk_factors_from_text(text),
         "diagnosis_procedure_match": "Unknown",
         "provider_specialty_appropriate": "Unknown",
         "medical_necessity": "Unknown"
     }
+
+
+def _score_looks_truncated(text: str, score_match: re.Match) -> bool:
+    """
+    Nemotron reasoning models often burn max_tokens on chain-of-thought and truncate
+    mid-line (e.g. content == 'FRAUD_SCORE: 9' instead of 98). Reject those.
+    """
+    rest = text[score_match.end():]
+    has_risk_level = bool(re.search(r'RISK[_\s]LEVEL', rest, re.IGNORECASE))
+    has_reasoning = bool(re.search(r'REASONING\s*:', rest, re.IGNORECASE))
+    # Truncated if we never got the rest of the required template
+    if not has_risk_level and not has_reasoning and len(text.strip()) < 120:
+        return True
+    # Trailing incomplete digit line with nothing after it
+    if not rest.strip() and len(text.strip()) < 40:
+        return True
+    return False
 
 
 def _parse_fraud_response(text: str) -> dict:
@@ -144,6 +237,11 @@ def _parse_fraud_response(text: str) -> dict:
     ]
 
     fraud_score = None
+    score_parsed = False
+    risk_factors = []
+    reasoning_from_json = None
+    risk_level_from_json = None
+
     for pattern in json_patterns:
         json_match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
         if json_match:
@@ -152,6 +250,10 @@ def _parse_fraud_response(text: str) -> dict:
                 fraud_score = parsed_json.get("fraud_score")
                 if fraud_score is not None:
                     fraud_score = max(0, min(100, int(fraud_score)))
+                    risk_factors = sanitize_risk_factors(parsed_json.get("risk_factors", []))
+                    reasoning_from_json = parsed_json.get("reasoning") or parsed_json.get("explanation")
+                    risk_level_from_json = parsed_json.get("risk_level")
+                    score_parsed = True
                     logger.info(f"✅ Extracted fraud_score from JSON: {fraud_score}")
                     break
             except (json.JSONDecodeError, ValueError, TypeError):
@@ -159,9 +261,17 @@ def _parse_fraud_response(text: str) -> dict:
 
     if fraud_score is None:
         score_match = re.search(r'FRAUD[_\s]SCORE["\']?\s*:\s*(\d+)', text, re.IGNORECASE)
-        if score_match:
+        if score_match and not _score_looks_truncated(text, score_match):
             fraud_score = int(score_match.group(1))
+            score_parsed = True
             logger.info(f"✅ Extracted fraud_score from FRAUD_SCORE pattern: {fraud_score}")
+        elif score_match:
+            logger.warning(
+                "⚠️  FRAUD_SCORE appears truncated (likely max_tokens cut mid-reasoning); "
+                "rejecting parse so the next model can retry"
+            )
+            fraud_score = 50
+            score_parsed = False
         else:
             # Try score in a clearly scored context before resorting to bare percentages.
             # Bare "(\d+)%" matches are unreliable — they grab price variances, delivery
@@ -180,6 +290,7 @@ def _parse_fraud_response(text: str) -> dict:
                     candidate = int(ctx_match.group(1))
                     if 0 <= candidate <= 100:
                         fraud_score = candidate
+                        score_parsed = True
                         logger.info(f"✅ Extracted fraud_score from score context: {fraud_score}")
                         break
 
@@ -191,24 +302,34 @@ def _parse_fraud_response(text: str) -> dict:
                         candidate = int(match.group(1))
                         if 0 <= candidate <= 100:
                             fraud_score = candidate
+                            score_parsed = True
                             logger.info(f"✅ Extracted fraud_score from score pattern: {fraud_score}")
                             break
 
             if fraud_score is None:
-                # Do NOT use bare percentages — they pick up variance numbers (e.g. "22% price
-                # variance") and silently produce a completely wrong fraud score.
+                # Do NOT invent a trusted 50 — callers should treat score_parsed=False as failure
+                # and try the next model. Keeping 50 only as a non-authoritative placeholder.
                 fraud_score = 50
-                logger.warning("⚠️  Could not extract fraud_score from model response; defaulting to 50")
+                score_parsed = False
+                logger.warning("⚠️  Could not extract fraud_score from model response; marking unparsed")
 
     fraud_score = max(0, min(100, int(fraud_score)))
-    risk_level = get_risk_level(fraud_score)
+    if risk_level_from_json and str(risk_level_from_json).upper() in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+        risk_level = str(risk_level_from_json).upper()
+    else:
+        risk_level = get_risk_level(fraud_score)
 
-    factors_match = re.search(r'RISK[_\s]FACTORS:\s*([^\n]+)', text, re.IGNORECASE)
-    risk_factors = [f.strip() for f in factors_match.group(1).split(',')] if factors_match else ['Analysis pending']
+    if not risk_factors:
+        risk_factors = _extract_risk_factors_from_text(text)
+    # Never surface placeholder junk — empty list is better than "Analysis pending"
+    risk_factors = sanitize_risk_factors(risk_factors)
 
-    reasoning_match = re.search(r'REASONING:\s*(.+)', text, re.IGNORECASE | re.DOTALL)
-    reasoning = reasoning_match.group(1).strip() if reasoning_match else text
-    reasoning = clean_reasoning(reasoning)
+    if reasoning_from_json:
+        reasoning = clean_reasoning(str(reasoning_from_json))
+    else:
+        reasoning_match = re.search(r'REASONING:\s*(.+)', text, re.IGNORECASE | re.DOTALL)
+        reasoning = reasoning_match.group(1).strip() if reasoning_match else text
+        reasoning = clean_reasoning(reasoning)
 
     if len(reasoning) > 1200:
         last_period = max(
@@ -227,5 +348,6 @@ def _parse_fraud_response(text: str) -> dict:
         'fraud_score': fraud_score,
         'risk_level': risk_level,
         'risk_factors': risk_factors,
-        'reasoning': reasoning
+        'reasoning': reasoning,
+        'score_parsed': score_parsed,
     }

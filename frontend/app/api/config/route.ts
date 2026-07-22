@@ -1,21 +1,24 @@
 /**
- * Runtime configuration API route
- * 
- * This allows the frontend to fetch the backend URL at runtime,
- * ensuring it's always correct even if environment variables change.
+ * Runtime configuration API route.
+ * Derives the sibling Cloud Run backend URL from the Host header when possible
+ * so the LinkedIn/resume frontend URL always pairs with the matching backend.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { backendFromFrontendHost } from '@/lib/config'
 
-export async function GET() {
-  // Get backend URL from environment variable (set at build/deploy time)
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-                 process.env.BACKEND_URL || 
-                 'http://localhost:8000'
+export async function GET(request: NextRequest) {
+  const host = request.headers.get('host') || ''
+  const derived = backendFromFrontendHost(host.split(':')[0])
+
+  const apiUrl =
+    derived ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.BACKEND_URL ||
+    'http://localhost:8000'
 
   return NextResponse.json({
     apiUrl,
     timestamp: new Date().toISOString(),
   })
 }
-

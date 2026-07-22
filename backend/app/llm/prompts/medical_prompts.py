@@ -41,7 +41,7 @@ SCORING GUIDELINES (STRICT - be conservative and flag suspicious claims):
 REQUIRED OUTPUT — use EXACTLY this format, no deviations:
 FRAUD_SCORE: [integer 0-100, NOT a percentage sign, NOT a range]
 RISK_LEVEL: [LOW | MEDIUM | HIGH | CRITICAL]
-RISK_FACTORS: [factor1, factor2, factor3, factor4, factor5]
+RISK_FACTORS: upcoding pattern, flagged provider history, excessive claim amount, diagnosis-procedure mismatch
 REASONING: [3-4 complete sentences citing ALL red flags: the claim amount (${data.get('claim_amount')}), the procedure codes ({data.get('procedure_codes')}), diagnosis codes ({data.get('diagnosis_codes')}), and any location-based risks. Be thorough and specific.]
 
 SCORE CALIBRATION (mandatory — ignore these and your response will be discarded):
@@ -112,7 +112,7 @@ Similar Medical Claims (RAG Context):
 {
   "clinical_legitimacy_score": <0-100, where 0=medically impossible, 100=perfectly coherent>,
   "reasoning": "<Detailed clinical reasoning explaining the score>",
-  "risk_factors": ["<List of clinical red flags, if any>"],
+  "risk_factors": ["CPT incompatible with ICD-10", "Specialty mismatch for procedure"],
   "diagnosis_procedure_match": "<Compatible/Questionable/Incompatible>",
   "provider_specialty_appropriate": "<Yes/Questionable/No>",
   "medical_necessity": "<Clearly Justified/Uncertain/Unjustified>"
@@ -192,7 +192,7 @@ The fraud_score MUST be a single integer 0-100 (no percent sign, no range, no de
   "fraud_score": <integer 0-100>,
   "risk_level": "<LOW|MEDIUM|HIGH|CRITICAL>",
   "reasoning": "<3-4 sentence detailed fraud analysis>",
-  "risk_factors": ["<specific fraud indicator 1>", "<indicator 2>", "<indicator 3>"],
+  "risk_factors": ["upcoding pattern", "flagged provider history", "excessive claim amount"],
   "fraud_type": "<Upcoding|Unbundling|Phantom Billing|Kickback|Diagnosis-Procedure Mismatch|None>",
   "recommended_action": "<Approve|Flag for Review|Deny|Investigate>"
 }

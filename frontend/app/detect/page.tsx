@@ -9,51 +9,61 @@ import EcommerceForm from '@/components/forms/EcommerceForm'
 import SupplyChainForm from '@/components/forms/SupplyChainForm'
 import ResultDisplay from '@/components/ResultDisplay'
 import { FraudDetectionResponse } from '@/lib/api'
+import { useModelSummary, SectorId } from '@/lib/models'
 
-type Sector = 'banking' | 'medical' | 'ecommerce' | 'supply_chain'
+function BrandIcon({ sectorId }: { sectorId: SectorId }) {
+  if (sectorId === 'banking') {
+    return <img src="/qwen-logo.svg" alt="" className="inline-block w-3 h-3 mr-1 align-middle" />
+  }
+  if (sectorId === 'medical') {
+    return (
+      <>
+        <img src="/gcp-logo.png" alt="" className="inline-block w-3 h-3 mr-1 align-middle" />
+      </>
+    )
+  }
+  return <img src="/nvidia-logo.svg" alt="" className="inline-block w-3 h-3 mr-1 align-middle" />
+}
 
 export default function DetectPage() {
-  const [activeSector, setActiveSector] = useState<Sector>('banking')
+  const [activeSector, setActiveSector] = useState<SectorId>('banking')
   const [result, setResult] = useState<FraudDetectionResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const { getPrimary } = useModelSummary()
 
   const sectors = [
     {
-      id: 'banking' as Sector,
+      id: 'banking' as SectorId,
       name: 'Banking & Crypto',
       icon: Building2,
-      model: 'Qwen3-32B (HF Inference)',
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/20',
-      borderColor: 'border-blue-500/30'
+      borderColor: 'border-blue-500/30',
     },
     {
-      id: 'medical' as Sector,
+      id: 'medical' as SectorId,
       name: 'Medical Claims',
       icon: Heart,
-      model: 'Two-Stage: MedGemma-27B → Qwen3-32B',
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/20',
-      borderColor: 'border-emerald-500/30'
+      borderColor: 'border-emerald-500/30',
     },
     {
-      id: 'ecommerce' as Sector,
+      id: 'ecommerce' as SectorId,
       name: 'E-commerce',
       icon: ShoppingCart,
-      model: 'Nemotron-Super-120B (OpenRouter FREE)',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
-      borderColor: 'border-purple-500/30'
+      borderColor: 'border-purple-500/30',
     },
     {
-      id: 'supply_chain' as Sector,
+      id: 'supply_chain' as SectorId,
       name: 'Supply Chain',
       icon: Package,
-      model: 'Nemotron-Super-120B (OpenRouter FREE)',
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/20',
-      borderColor: 'border-orange-500/30'
-    }
+      borderColor: 'border-orange-500/30',
+    },
   ]
 
   const handleResult = (response: FraudDetectionResponse) => {
@@ -63,9 +73,7 @@ export default function DetectPage() {
 
   const handleLoading = (isLoading: boolean) => {
     setLoading(isLoading)
-    if (isLoading) {
-      setResult(null)
-    }
+    if (isLoading) setResult(null)
   }
 
   const handleReset = () => {
@@ -76,7 +84,6 @@ export default function DetectPage() {
   return (
     <div className="min-h-screen py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -90,7 +97,6 @@ export default function DetectPage() {
           </p>
         </motion.div>
 
-        {/* Sector Tabs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           {sectors.map((sector, index) => (
             <motion.button
@@ -110,13 +116,15 @@ export default function DetectPage() {
             >
               <sector.icon className={`w-8 h-8 mx-auto mb-3 ${sector.color}`} />
               <div className="text-white font-semibold mb-1">{sector.name}</div>
-              <div className={`text-sm ${sector.color} font-mono`}>{sector.model}</div>
+              <div className={`text-sm ${sector.color} font-mono`}>
+                <BrandIcon sectorId={sector.id} />
+                {getPrimary(sector.id)}
+              </div>
             </motion.button>
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Form Section */}
           <motion.div
             key={activeSector}
             initial={{ opacity: 0, x: -20 }}
@@ -124,10 +132,16 @@ export default function DetectPage() {
             className="glass-effect rounded-xl p-8"
           >
             <h2 className="text-2xl font-bold text-white mb-6">
-              {sectors.find(s => s.id === activeSector)?.name} Fraud Detection
+              {sectors.find((s) => s.id === activeSector)?.name} Fraud Detection
             </h2>
 
-            <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader className="w-8 h-8 animate-spin text-sapphire-400" /></div>}>
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center p-12">
+                  <Loader className="w-8 h-8 animate-spin text-sapphire-400" />
+                </div>
+              }
+            >
               {activeSector === 'banking' && (
                 <BankingForm onResult={handleResult} onLoading={handleLoading} />
               )}
@@ -143,7 +157,6 @@ export default function DetectPage() {
             </Suspense>
           </motion.div>
 
-          {/* Results Section */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -178,40 +191,14 @@ export default function DetectPage() {
                     <Shield className="w-12 h-12 text-sapphire-400" />
                   </div>
                   <p className="text-gray-300 mb-2">No analysis yet</p>
-                  <p className="text-gray-500 text-sm">Fill out the form and submit to see fraud detection results</p>
+                  <p className="text-gray-500 text-sm">
+                    Fill out the form and submit to see fraud detection results
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
           </motion.div>
         </div>
-
-        {/* Info Section */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="mt-12 glass-effect rounded-xl p-8"
-        >
-          <h3 className="text-xl font-bold text-white mb-4">How This Works</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
-            <div>
-              <div className="text-sapphire-400 font-semibold mb-2">1. Submit Data</div>
-              <p className="text-gray-400">Enter transaction, claim, or activity details in the form above</p>
-            </div>
-            <div>
-              <div className="text-purple-400 font-semibold mb-2">2. AI Analysis</div>
-              <p className="text-gray-400">LangGraph routes to sector-specific LLM with RAG context</p>
-            </div>
-            <div>
-              <div className="text-sapphire-400 font-semibold mb-2">3. Fraud Score</div>
-              <p className="text-gray-400">Receive 0-100% fraud probability with risk level</p>
-            </div>
-            <div>
-              <div className="text-yellow-400 font-semibold mb-2">4. Explanation</div>
-              <p className="text-gray-400">Get human-readable reasoning for the fraud assessment</p>
-            </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   )
@@ -220,8 +207,12 @@ export default function DetectPage() {
 function Shield({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+      />
     </svg>
   )
 }
-
