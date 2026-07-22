@@ -3,8 +3,10 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight, Zap, DollarSign, Clock, Shield, Sparkles, BarChart3 } from 'lucide-react'
+import { useModelSummary } from '@/lib/models'
 
 export default function Home() {
+  const { getPrimary, summary } = useModelSummary()
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -251,36 +253,32 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
+                id: 'banking' as const,
                 title: 'Banking & Crypto',
-                model: 'Qwen3-32B',
-                modelDescription: 'HF Inference — Financial Reasoning',
                 modelColor: 'text-yellow-400',
                 icon: '🏦',
                 description: 'Velocity anomalies, mule rings, txn graph divergence, wash trading',
                 link: '/detect?sector=banking'
               },
               {
+                id: 'medical' as const,
                 title: 'Medical Claims',
-                model: 'MedGemma-27B → Qwen3-32B',
-                modelDescription: 'HF Inference — Two-Stage: Clinical → Fraud',
                 modelColor: 'text-emerald-400',
                 icon: '🏥',
                 description: 'Clinical validation + fraud detection: Upcoding, unbundling, suspect provider behavior',
                 link: '/detect?sector=medical'
               },
               {
+                id: 'ecommerce' as const,
                 title: 'E-commerce',
-                model: 'Nemotron-Super-120B',
-                modelDescription: 'OpenRouter FREE — Marketplace Fraud',
                 modelColor: 'text-purple-400',
                 icon: '🛒',
                 description: 'Return fraud, fake accounts, buyer/seller collusion',
                 link: '/detect?sector=ecommerce'
               },
               {
+                id: 'supply_chain' as const,
                 title: 'Supply Chain',
-                model: 'Nemotron-Super-120B',
-                modelDescription: 'OpenRouter FREE — Logistics Fraud',
                 modelColor: 'text-orange-400',
                 icon: '📦',
                 description: 'Ghost suppliers, kickback schemes, price manipulation',
@@ -298,8 +296,12 @@ export default function Home() {
                 >
                   <div className="text-5xl mb-4">{industry.icon}</div>
                   <h3 className="text-xl font-bold text-white mb-2">{industry.title}</h3>
-                  <div className={`font-semibold ${industry.modelColor} mb-1`}>{industry.model}</div>
-                  <div className="text-gray-400 text-sm mb-3">{industry.modelDescription}</div>
+                  <div className={`font-semibold ${industry.modelColor} mb-1`}>
+                    {getPrimary(industry.id)}
+                  </div>
+                  <div className="text-gray-400 text-sm mb-3">
+                    {summary[industry.id]?.blurb || 'Sector-specialized fraud model'}
+                  </div>
                   <p className="text-gray-400 text-sm flex-grow">{industry.description}</p>
                 </motion.div>
               </Link>
@@ -321,10 +323,10 @@ export default function Home() {
               Built with <span className="gradient-text">Modern Stack</span>
             </h2>
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Next-gen fraud detection with HF Inference & OpenRouter FREE models • LangGraph orchestration • Pinecone RAG • MCP • FastAPI • Next.js • Terraform
+              Next-gen fraud detection with HF Inference & OpenRouter • LangGraph • Pinecone RAG • MCP • FastAPI • Next.js • Terraform
             </p>
             <div className="flex flex-wrap justify-center gap-4 mb-8">
-              {['LangGraph', 'HF Inference', 'OpenRouter FREE', 'Qwen3-32B', 'MedGemma-27B', 'Nemotron-Super-120B', 'Pinecone', 'MCP', 'FastAPI', 'Next.js', 'Terraform', 'Cloud Run'].map((tech) => (
+              {['LangGraph', 'HF Inference', 'OpenRouter', 'Qwen', 'MedGemma', 'Nemotron', 'Pinecone', 'MCP', 'FastAPI', 'Next.js', 'Terraform', 'Cloud Run'].map((tech) => (
                 <span key={tech} className="px-4 py-2 bg-sapphire-500/20 text-sapphire-300 rounded-full text-sm font-semibold border border-sapphire-500/30">
                   {tech}
                 </span>

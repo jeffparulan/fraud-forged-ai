@@ -1,164 +1,212 @@
 """
-LLM configuration: sector model mappings and constants.
+LLM configuration loader.
 
-MODEL ALIGNMENT (Updated May 2026):
-- Banking:      Qwen3-32B (HF Inference via Novita/Together/Fireworks) - Financial reasoning, AML patterns
-- Medical:      TWO-STAGE PIPELINE
-  ├─ Stage 1:  MedGemma-27B (HF Inference via Featherless AI) - Clinical legitimacy validation
-  │            Google's medical-specialist 27B, trained on PMC-OA + clinical reasoning benchmarks
-  │            GATED: user must accept Health AI Developer Foundation terms at
-  │            huggingface.co/google/medgemma-27b-text-it before first use.
-  │            Fallback if gated/unavailable: GPT-OSS-120B (OpenRouter FREE)
-  └─ Stage 2:  Qwen3-32B (HF Inference) - Fraud pattern analysis
-- E-commerce:   Nemotron-Super-120B (OpenRouter FREE, Finance #24) - Calibrated marketplace fraud scoring
-- Supply Chain: Nemotron-Super-120B (OpenRouter FREE, Finance #24) - Calibrated logistics fraud scoring
-  NOTE: Tencent Hy3 Preview was replaced because it consistently returns neutral/medium scores
-        (~50) regardless of risk level, making it unreliable for fraud detection.
-        Nemotron-Super-120B provides properly calibrated risk scores.
-
-FALLBACK CHAIN (OpenRouter FREE tier only):
-1. OpenAI GPT-OSS-120B  (Finance #20) - 120B MoE, high reasoning (also Medical Stage 1 fallback)
-2. Tencent Hy3 Preview  (Finance #4)  - Fallback only (neutral scoring bias noted)
-3. Google Gemma-4-31B / Meta Llama-3.3-70B  - broad general fallback
+Single source of truth: app/llm/models.yaml
+This module only loads + exposes typed helpers — do not hardcode model IDs here.
 """
-from typing import Dict, Any, List
+from __future__ import annotations
 
-# OFAC (Office of Foreign Assets Control) Sanctioned Countries and High-Risk Fraud Countries
+import logging
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
+
+logger = logging.getLogger(__name__)
+
+_MODELS_YAML = Path(__file__).with_name("models.yaml")
+
+# OFAC / high-risk country list (domain data, not model routing)
 OFAC_SANCTIONED_COUNTRIES = [
-    # Fully sanctioned countries (comprehensive sanctions)
-    'cuba', 'iran', 'north korea', 'syria', 'crimea', 'donetsk', 'luhansk',
-    # Countries with significant sanctions
-    'russia', 'belarus', 'venezuela', 'myanmar', 'burma', 'sudan', 'south sudan',
-    'libya', 'yemen', 'somalia', 'central african republic', 'democratic republic of congo',
-    'congo', 'zimbabwe', 'mali', 'burkina faso', 'niger',
-    # High-risk fraud countries (not OFAC but high fraud rates)
-    'nigeria', 'ghana', 'cameroon', 'ivory coast', 'senegal', 'togo', 'benin',
-    'philippines', 'indonesia', 'malaysia', 'thailand', 'vietnam', 'pakistan',
-    'bangladesh', 'romania', 'bulgaria', 'ukraine', 'moldova', 'albania',
-    'serbia', 'bosnia', 'macedonia', 'montenegro', 'kosovo',
-    # Additional high-risk regions
-    'west africa', 'east africa', 'balkans', 'eastern europe'
+    "cuba", "iran", "north korea", "syria", "crimea", "donetsk", "luhansk",
+    "russia", "belarus", "venezuela", "myanmar", "burma", "sudan", "south sudan",
+    "libya", "yemen", "somalia", "central african republic", "democratic republic of congo",
+    "congo", "zimbabwe", "mali", "burkina faso", "niger",
+    "nigeria", "ghana", "cameroon", "ivory coast", "senegal", "togo", "benin",
+    "philippines", "indonesia", "malaysia", "thailand", "vietnam", "pakistan",
+    "bangladesh", "romania", "bulgaria", "ukraine", "moldova", "albania",
+    "serbia", "bosnia", "macedonia", "montenegro", "kosovo",
+    "west africa", "east africa", "balkans", "eastern europe",
 ]
 
-# Sector model configuration (provider-aware)
-# provider: "hf" | "openrouter" | "hf_space" | "vertex"
-SECTOR_MODELS: Dict[str, Dict[str, Any]] = {
-    # ──────────────────────────────────────────────────────────────────────────
-    # BANKING / CRYPTO
-    # Primary: Qwen3-32B via HF Inference (Novita / Together / Fireworks)
-    #   → Dense 32B, Qwen's 2026 flagship, strong financial reasoning & AML
-    # Fallbacks: fully-free OpenRouter models ranked by Finance leaderboard
-    # ──────────────────────────────────────────────────────────────────────────
-    "banking": {
-        "primary": {"provider": "hf", "model": "Qwen/Qwen3-32B"},
-        "fallbacks": [
-            # Finance #20 — 120B MoE, configurable reasoning depth
-            {"provider": "openrouter", "model": "openai/gpt-oss-120b:free"},
-            # Finance #4  — Tencent Hy3, highest free Finance ranking
-            {"provider": "openrouter", "model": "tencent/hy3-preview:free"},
-            # Solid general fallback (updated from 3.1 → 3.3)
-            {"provider": "openrouter", "model": "meta-llama/llama-3.3-70b-instruct:free"},
-        ],
-    },
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # HEALTHCARE / MEDICAL CLAIMS  — Two-stage pipeline
-    # Stage 1 (Clinical): MedGemma-27B (HF Inference via Featherless AI)
-    #   → Google's medical-specialist LLM trained on PMC-OA + clinical benchmarks
-    #   → GATED: must accept Health AI Developer Foundation terms at
-    #     huggingface.co/google/medgemma-27b-text-it (access granted immediately)
-    #   → If gated/unavailable, orchestrator falls through to GPT-OSS-120B fallback
-    # Stage 2 (Fraud):    Qwen3-32B (HF Inference) - Fraud pattern analysis
-    # ──────────────────────────────────────────────────────────────────────────
-    "medical": {
-        "two_stage": True,
-        "stage1": {
-            "name": "Clinical Legitimacy Validation",
-            "provider": "hf",
-            "model": "google/medgemma-27b-text-it",
-            "purpose": "Validate medical coherence, diagnosis-procedure compatibility, clinical plausibility"
-        },
-        "stage2": {
-            "name": "Fraud Pattern Analysis",
-            "provider": "hf",
-            "model": "Qwen/Qwen3-32B",
-            "purpose": "Analyze billing behavior, cost outliers, peer deviation, fraud patterns"
-        },
-        "fallbacks": [
-            # Stage 1 fallback if MedGemma is gated/unavailable — Finance #20, 120B MoE
-            {"provider": "openrouter", "model": "openai/gpt-oss-120b:free"},
-            # Finance #4, Health #34
-            {"provider": "openrouter", "model": "tencent/hy3-preview:free"},
-            # Finance #24 — NVIDIA 120B hybrid MoE, 1M context
-            {"provider": "openrouter", "model": "nvidia/nemotron-3-super-120b-a12b:free"},
-        ],
-    },
+@lru_cache(maxsize=1)
+def load_models_config() -> Dict[str, Any]:
+    """Load and cache models.yaml."""
+    if not _MODELS_YAML.exists():
+        raise FileNotFoundError(f"Missing model config: {_MODELS_YAML}")
+    with _MODELS_YAML.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if not data.get("catalog") or not data.get("sectors"):
+        raise ValueError("models.yaml must define 'catalog' and 'sectors'")
+    return data
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # E-COMMERCE
-    # Primary: Nemotron-Super-120B (Finance #24 free) — replaces Tencent Hy3 Preview
-    #   → Tencent Hy3 consistently returned neutral/medium scores (~50) regardless
-    #     of fraud severity. Nemotron-Super-120B delivers properly calibrated
-    #     fraud risk scores across the full severity spectrum.
-    #   → 120B hybrid MoE (A12B active), 1M context window, strong instruction following
-    # ──────────────────────────────────────────────────────────────────────────
-    "ecommerce": {
-        "primary": {"provider": "openrouter", "model": "nvidia/nemotron-3-super-120b-a12b:free"},
-        "fallbacks": [
-            # Finance #20 — 120B MoE, high reasoning
-            {"provider": "openrouter", "model": "openai/gpt-oss-120b:free"},
-            # Finance #4 — kept as fallback only
-            {"provider": "openrouter", "model": "tencent/hy3-preview:free"},
-            # 30.7B dense multimodal, 262K context
-            {"provider": "openrouter", "model": "google/gemma-4-31b-it:free"},
-        ],
-    },
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # SUPPLY CHAIN / LOGISTICS
-    # Primary: Nemotron-Super-120B — 1M context ideal for long logistics documents
-    #   → Same reasoning for replacing Tencent Hy3 as E-commerce (neutral bias)
-    # ──────────────────────────────────────────────────────────────────────────
-    "supply_chain": {
-        "primary": {"provider": "openrouter", "model": "nvidia/nemotron-3-super-120b-a12b:free"},
-        "fallbacks": [
-            {"provider": "openrouter", "model": "openai/gpt-oss-120b:free"},
-            {"provider": "openrouter", "model": "tencent/hy3-preview:free"},
-            {"provider": "openrouter", "model": "google/gemma-4-31b-it:free"},
-        ],
-    },
-}
+def reload_models_config() -> Dict[str, Any]:
+    """Clear cache and reload (tests / hot-edit)."""
+    load_models_config.cache_clear()
+    return load_models_config()
+
+
+def _resolve_ref(ref: str, catalog: Dict[str, Any]) -> Dict[str, str]:
+    entry = catalog.get(ref)
+    if not entry:
+        raise KeyError(f"Unknown model ref '{ref}' in models.yaml catalog")
+    return {
+        "provider": entry["provider"],
+        "model": entry["id"],
+        "display": entry.get("display") or entry["id"],
+        "brand": entry.get("brand", ""),
+        "ref": ref,
+    }
+
+
+def _build_sector_models(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    catalog = raw["catalog"]
+    sectors: Dict[str, Dict[str, Any]] = {}
+
+    for sector, cfg in (raw.get("sectors") or {}).items():
+        fallbacks = [
+            {"provider": r["provider"], "model": r["model"]}
+            for ref in cfg.get("fallbacks") or []
+            for r in [_resolve_ref(ref, catalog)]
+        ]
+
+        if cfg.get("two_stage"):
+            s1 = cfg["stage1"]
+            s2 = cfg["stage2"]
+            r1 = _resolve_ref(s1["ref"], catalog)
+            r2 = _resolve_ref(s2["ref"], catalog)
+            sectors[sector] = {
+                "two_stage": True,
+                "label": cfg.get("label", sector),
+                "route_display": cfg.get("route_display", ""),
+                "ui_model": cfg.get("ui_model") or cfg.get("route_display", ""),
+                "blurb": cfg.get("blurb", ""),
+                "stage1": {
+                    "name": s1.get("name", "Stage 1"),
+                    "provider": r1["provider"],
+                    "model": r1["model"],
+                    "display": r1["display"],
+                    "purpose": s1.get("purpose", ""),
+                },
+                "stage2": {
+                    "name": s2.get("name", "Stage 2"),
+                    "provider": r2["provider"],
+                    "model": r2["model"],
+                    "display": r2["display"],
+                    "purpose": s2.get("purpose", ""),
+                },
+                "fallbacks": fallbacks,
+            }
+        else:
+            primary = _resolve_ref(cfg["primary"], catalog)
+            sectors[sector] = {
+                "two_stage": False,
+                "label": cfg.get("label", sector),
+                "route_display": cfg.get("route_display", primary["display"]),
+                "ui_model": cfg.get("ui_model") or cfg.get("route_display", primary["display"]),
+                "blurb": cfg.get("blurb", ""),
+                "primary": {
+                    "provider": primary["provider"],
+                    "model": primary["model"],
+                    "display": primary["display"],
+                },
+                "fallbacks": fallbacks,
+            }
+    return sectors
+
+
+# Eager load so import failures surface at startup
+_RAW = load_models_config()
+SECTOR_MODELS: Dict[str, Dict[str, Any]] = _build_sector_models(_RAW)
+SECTOR_LOCATION_FIELDS: Dict[str, list] = dict(_RAW.get("location_fields") or {})
+INFERENCE_DEFAULTS: Dict[str, Any] = dict(_RAW.get("inference") or {})
+MODEL_CATALOG: Dict[str, Any] = dict(_RAW.get("catalog") or {})
+
+
+def get_inference_defaults(provider: str) -> Dict[str, Any]:
+    """Return inference knobs for a provider from models.yaml."""
+    return dict(INFERENCE_DEFAULTS.get(provider) or {})
+
+
+def get_sector_route_display(sector: str) -> str:
+    """Human-readable model label for decision-trace routing."""
+    cfg = SECTOR_MODELS.get(sector) or {}
+    return cfg.get("route_display") or "Llama-3.3-70B (OpenRouter FREE fallback)"
+
+
+def get_sector_ui_model(sector: str) -> str:
+    """Short UI label for sector cards."""
+    cfg = SECTOR_MODELS.get(sector) or {}
+    return cfg.get("ui_model") or get_sector_route_display(sector)
+
+
+def get_sector_label(sector: str) -> str:
+    cfg = SECTOR_MODELS.get(sector) or {}
+    return cfg.get("label") or sector
+
+
+def format_model_name(
+    model_name: str,
+    provider: str,
+    is_fallback: bool = False,
+    fallback_number: Optional[int] = None,
+) -> str:
+    """Map a provider model id to a display name using the YAML catalog."""
+    display_name = model_name
+    for entry in MODEL_CATALOG.values():
+        if entry.get("id") == model_name:
+            display_name = entry.get("display") or model_name
+            break
+    else:
+        # Soft fallback for legacy / unexpected ids
+        mn = model_name.lower()
+        if "qwen3-32b" in mn:
+            display_name = "Qwen3-32B"
+        elif "medgemma-27b" in mn:
+            display_name = "MedGemma-27B"
+        elif "nemotron-3-ultra" in mn:
+            display_name = "Nemotron-Ultra-550B"
+        elif "nemotron-3-super" in mn:
+            display_name = "Nemotron-Super-120B"
+        elif "nemotron-3-nano-30b" in mn:
+            display_name = "Nemotron-3-Nano-30B"
+        elif "nemotron-nano-9b" in mn:
+            display_name = "Nemotron-Nano-9B"
+        else:
+            display_name = model_name.split("/")[-1]
+
+    provider_display = {
+        "hf": "HF Inference",
+        "openrouter": "OpenRouter FREE",
+        "hf_space": "HF Space",
+        "vertex": "Vertex AI",
+    }.get(provider, provider)
+
+    if is_fallback and fallback_number is not None:
+        return f"{display_name} (Fallback #{fallback_number} - {provider_display})"
+    return f"{display_name} ({provider_display})" if provider in ("hf", "openrouter") else display_name
 
 
 def get_sector_model_candidates(sector: str) -> List[Dict[str, str]]:
-    """
-    Return ordered model candidates for a sector.
-
-    For single-stage sectors this is primary + fallbacks.
-    For two-stage sectors this is stage1 + stage2 + fallbacks.
-    """
+    """Ordered model candidates for a sector (primary/stages + fallbacks)."""
     model_config = SECTOR_MODELS.get(sector, {})
     candidates: List[Dict[str, str]] = []
 
     if model_config.get("two_stage"):
-        stage1 = model_config.get("stage1")
-        stage2 = model_config.get("stage2")
-        if stage1:
-            candidates.append(
-                {
-                    "provider": stage1.get("provider", ""),
-                    "model": stage1.get("model", ""),
-                    "role": "stage1",
-                }
-            )
-        if stage2:
-            candidates.append(
-                {
-                    "provider": stage2.get("provider", ""),
-                    "model": stage2.get("model", ""),
-                    "role": "stage2",
-                }
-            )
+        for role in ("stage1", "stage2"):
+            stage = model_config.get(role)
+            if stage:
+                candidates.append(
+                    {
+                        "provider": stage.get("provider", ""),
+                        "model": stage.get("model", ""),
+                        "display": stage.get("display", ""),
+                        "role": role,
+                    }
+                )
     else:
         primary = model_config.get("primary")
         if primary:
@@ -166,6 +214,7 @@ def get_sector_model_candidates(sector: str) -> List[Dict[str, str]]:
                 {
                     "provider": primary.get("provider", ""),
                     "model": primary.get("model", ""),
+                    "display": primary.get("display", ""),
                     "role": "primary",
                 }
             )
@@ -175,16 +224,39 @@ def get_sector_model_candidates(sector: str) -> List[Dict[str, str]]:
             {
                 "provider": fallback.get("provider", ""),
                 "model": fallback.get("model", ""),
+                "display": format_model_name(
+                    fallback.get("model", ""), fallback.get("provider", "")
+                ),
                 "role": "fallback",
             }
         )
 
     return [c for c in candidates if c.get("provider") and c.get("model")]
 
-# Sector-specific location fields for OFAC checks
-SECTOR_LOCATION_FIELDS: Dict[str, list] = {
-    "banking": ["source_country", "destination_country", "location"],
-    "medical": ["provider_location", "patient_location", "billing_address", "service_location"],
-    "ecommerce": ["shipping_location", "shipping_address", "billing_address", "origin_country"],
-    "supply_chain": ["supplier_location", "supplier_country", "origin_country", "shipping_location", "billing_address"],
-}
+
+def build_models_summary() -> Dict[str, Any]:
+    """API-ready summary for /api/models (frontend source of truth)."""
+    summary: Dict[str, Any] = {}
+    for sector, cfg in SECTOR_MODELS.items():
+        if cfg.get("two_stage"):
+            primary_display = (
+                f"{cfg['stage1'].get('display')} → {cfg['stage2'].get('display')}"
+            )
+            pipeline = "two-stage"
+        else:
+            primary_display = cfg.get("primary", {}).get("display", "")
+            pipeline = "single-stage"
+
+        fallback_displays = [
+            format_model_name(f["model"], f["provider"], True, i + 1)
+            for i, f in enumerate(cfg.get("fallbacks", []))
+        ]
+        summary[sector] = {
+            "label": cfg.get("label", sector),
+            "pipeline": pipeline,
+            "primary": cfg.get("ui_model") or primary_display,
+            "route_display": cfg.get("route_display") or primary_display,
+            "blurb": cfg.get("blurb", ""),
+            "fallbacks": fallback_displays,
+        }
+    return summary

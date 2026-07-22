@@ -34,12 +34,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS: ALLOWED_ORIGINS is a comma-separated allowlist.
+# Cloud Run exposes two URL shapes for the same service (hash *.a.run.app and
+# project-number *.REGION.run.app). Allow both via regex so browser preflights
+# don't 400 when users open either frontend URL.
+_allowed_origins = [
+    o.strip() for o in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",") if o.strip()
+]
+_allowed_origin_regex = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"https://fraud-forge-frontend-[\w-]+\.(?:a\.run\.app|[a-z0-9-]+\.run\.app)|http://(localhost|127\.0\.0\.1):\d+",
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_allowed_origins,
+    allow_origin_regex=_allowed_origin_regex,
+    allow_credentials="*" not in _allowed_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 

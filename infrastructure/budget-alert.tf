@@ -17,7 +17,7 @@ resource "google_pubsub_topic" "budget_alert" {
 
 # Budget with $5 threshold (only created if billing_account_id is provided)
 resource "google_billing_budget" "monthly_budget" {
-  count          = var.billing_account_id != "" ? 1 : 0
+  count           = var.billing_account_id != "" ? 1 : 0
   billing_account = var.billing_account_id
   display_name    = "FraudForge AI Monthly Budget"
 
@@ -32,16 +32,16 @@ resource "google_billing_budget" "monthly_budget" {
   }
 
   threshold_rules {
-    threshold_percent = 0.5  # Alert at 50% ($2.50)
+    threshold_percent = 0.5 # Alert at 50% ($2.50)
   }
 
   threshold_rules {
-    threshold_percent = 0.9  # Alert at 90% ($4.50)
+    threshold_percent = 0.9 # Alert at 90% ($4.50)
   }
 
   threshold_rules {
-    threshold_percent = 1.0  # Alert at 100% ($5.00)
-    spend_basis = "CURRENT_SPEND"
+    threshold_percent = 1.0 # Alert at 100% ($5.00)
+    spend_basis       = "CURRENT_SPEND"
   }
 
   all_updates_rule {
@@ -84,14 +84,14 @@ resource "google_cloudfunctions2_function" "budget_shutdown" {
   }
 
   service_config {
-    max_instance_count = 1
-    available_memory   = "256M"
-    timeout_seconds    = 60
+    max_instance_count    = 1
+    available_memory      = "256M"
+    timeout_seconds       = 60
     service_account_email = google_service_account.budget_shutdown[0].email
 
     environment_variables = {
-      PROJECT_ID = var.project_id
-      REGION     = var.region
+      PROJECT_ID      = var.project_id
+      REGION          = var.region
       BACKEND_SERVICE = "fraud-forge-backend"
     }
   }
@@ -106,10 +106,10 @@ resource "google_cloudfunctions2_function" "budget_shutdown" {
 
 # Storage bucket for function code (only created if billing_account_id is provided)
 resource "google_storage_bucket" "function_source" {
-  count        = var.billing_account_id != "" ? 1 : 0
-  project      = var.project_id
-  name         = "${var.project_id}-budget-function-source"
-  location     = var.region
+  count         = var.billing_account_id != "" ? 1 : 0
+  project       = var.project_id
+  name          = "${var.project_id}-budget-function-source"
+  location      = var.region
   force_destroy = true
 }
 

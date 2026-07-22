@@ -2,7 +2,10 @@
 
 import { motion } from 'framer-motion'
 import { FraudDetectionResponse } from '@/lib/api'
-import { AlertTriangle, CheckCircle, XCircle, Info, Clock, Cpu, RefreshCw } from 'lucide-react'
+import {
+  AlertTriangle, CheckCircle, XCircle, Info, Clock, Cpu, RefreshCw,
+  GitBranch, ShieldAlert, CircleDot,
+} from 'lucide-react'
 
 interface Props {
   result: FraudDetectionResponse
@@ -146,6 +149,125 @@ export default function ResultDisplay({ result, onReset }: Props) {
         <div className="bg-nightfall-900/30 rounded-lg p-3">
           <div className="text-xs text-gray-400 mb-1">Similar Fraud Patterns Found</div>
           <div className="text-lg font-semibold text-sapphire-400">{result.similar_patterns}</div>
+        </div>
+      )}
+
+      {/* Score contribution breakdown — shows why flipping KYC/TOR/etc moved (or didn't) */}
+      {result.score_breakdown && result.score_breakdown.length > 0 && (
+        <div className="bg-nightfall-900/50 rounded-lg p-4">
+          <div className="text-sm font-semibold text-sapphire-400 mb-3">Score Contributions</div>
+          <ul className="space-y-1.5">
+            {result.score_breakdown.map((item, i) => {
+              const positive = item.points > 0
+              const neutral = item.points === 0
+              return (
+                <li key={i} className="flex items-center justify-between text-sm gap-3">
+                  <span className="text-gray-300">{item.label}</span>
+                  <span
+                    className={
+                      neutral
+                        ? 'text-yellow-400 font-mono text-xs'
+                        : positive
+                          ? 'text-red-400 font-mono'
+                          : 'text-green-400 font-mono'
+                    }
+                  >
+                    {neutral ? '—' : `${item.points > 0 ? '+' : ''}${item.points}`}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
+            Flipping a field (e.g. KYC) always re-weights the score. If the gauge stays at 100,
+            other critical signals still saturate the ceiling — check the contribution list above.
+          </p>
+        </div>
+      )}
+
+      {/* Risk Factors */}
+      {result.risk_factors && result.risk_factors.length > 0 && (
+        <div className="bg-nightfall-900/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="w-4 h-4 text-orange-400" />
+            <div className="text-sm font-semibold text-orange-400">Risk Factors Identified</div>
+          </div>
+          <ul className="space-y-2">
+            {result.risk_factors.map((factor, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+                <CircleDot className="w-3.5 h-3.5 mt-0.5 text-orange-400/70 shrink-0" />
+                {factor}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Decision Trace: shows how the LangGraph pipeline reached this verdict */}
+      {result.decision_trace && result.decision_trace.length > 0 && (
+        <div className="bg-nightfall-900/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <GitBranch className="w-4 h-4 text-sapphire-400" />
+            <div className="text-sm font-semibold text-sapphire-400">Pipeline Decision Trace</div>
+          </div>
+          {result.pipeline_meta && (
+            <div className="mb-3 flex flex-wrap gap-2 text-[11px] text-gray-400">
+              {result.pipeline_meta.analysis_method && (
+                <span className="px-2 py-0.5 rounded bg-nightfall-800 border border-nightfall-700">
+                  method: {result.pipeline_meta.analysis_method}
+                </span>
+              )}
+              {result.pipeline_meta.mcp_status && (
+                <span className="px-2 py-0.5 rounded bg-nightfall-800 border border-nightfall-700">
+                  mcp: {result.pipeline_meta.mcp_status}
+                </span>
+              )}
+              {typeof result.pipeline_meta.rag_top_score === 'number' && (
+                <span className="px-2 py-0.5 rounded bg-nightfall-800 border border-nightfall-700">
+                  rag top: {result.pipeline_meta.rag_top_score.toFixed(3)}
+                </span>
+              )}
+              {result.pipeline_meta.embedding_source && (
+                <span className="px-2 py-0.5 rounded bg-nightfall-800 border border-nightfall-700">
+                  embed: {result.pipeline_meta.embedding_source}
+                </span>
+              )}
+              {result.pipeline_meta.guardrail_adjusted && (
+                <span className="px-2 py-0.5 rounded bg-yellow-500/20 border border-yellow-500/40 text-yellow-300">
+                  guardrail escalated
+                </span>
+              )}
+            </div>
+          )}
+          <ol className="relative space-y-4 pl-1">
+            {result.decision_trace.map((step, i) => {
+              const stepColor =
+                step.status === 'fallback' ? 'text-yellow-400 border-yellow-400/50'
+                : step.status === 'empty' ? 'text-gray-500 border-gray-500/50'
+                : 'text-green-400 border-green-400/50'
+              return (
+                <li key={i} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold ${stepColor}`}>
+                      {i + 1}
+                    </div>
+                    {i < result.decision_trace!.length - 1 && (
+                      <div className="w-px flex-1 bg-nightfall-700 mt-1" />
+                    )}
+                  </div>
+                  <div className="pb-1">
+                    <div className="text-sm font-medium text-white flex items-center gap-2">
+                      {step.title}
+                      {typeof step.latency_ms === 'number' && (
+                        <span className="text-[10px] text-gray-500 font-normal">{step.latency_ms}ms</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400 leading-relaxed">{step.detail}</div>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
         </div>
       )}
 

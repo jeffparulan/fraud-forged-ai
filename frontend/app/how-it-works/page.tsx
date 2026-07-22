@@ -3,8 +3,10 @@
 import { motion } from 'framer-motion'
 import { FileInput, GitBranch, Database, Cpu, CheckCircle, ArrowRight, Zap } from 'lucide-react'
 import Link from 'next/link'
+import { useModelSummary } from '@/lib/models'
 
 export default function HowItWorks() {
+  const { getPrimary } = useModelSummary()
   const steps = [
     {
       number: 1,
@@ -25,7 +27,7 @@ export default function HowItWorks() {
       title: 'LangGraph Routes Request',
       icon: GitBranch,
       description: 'Intelligent orchestration layer analyzes sector and routes to optimal LLM',
-      technical: 'LangGraph workflow evaluates input context, retrieves external data via MCP, selects domain-specific model based on sector',
+      technical: 'LangGraph maps the sector to its specialist model, retrieves MCP context, and prepares RAG',
       flow: [
         'Parse input sector (banking/medical/ecommerce/supply_chain)',
         'Map sector to specialized LLM',
@@ -55,12 +57,12 @@ export default function HowItWorks() {
       title: 'AI Analyzes Fraud',
       icon: Cpu,
       description: 'Cost-optimized fraud-specialized LLM with RAG-enhanced context',
-      technical: 'HF Inference and OpenRouter FREE models evaluate fraud indicators using specialized reasoning with intelligent fallback chains',
+      technical: 'HF Inference and OpenRouter models with cost-optimized FREE fallback chains',
       models: {
-        banking: 'Qwen3-32B (HF Inference) analyzes amount, location, device, timing, account age with advanced financial reasoning',
-        medical: 'Two-Stage: MedGemma-27B (HF Inference) validates clinical legitimacy (diagnosis-procedure match), then Qwen3-32B analyzes fraud patterns (upcoding, billing behavior)',
-        ecommerce: 'Nemotron-Super-120B (OpenRouter FREE) evaluates seller age, pricing, reviews, shipping with agentic marketplace fraud detection',
-        supply_chain: 'Nemotron-Super-120B (OpenRouter FREE) examines supplier age, price variance, payment terms, documentation with long-context logistics reasoning'
+        banking: `${getPrimary('banking')} analyzes amount, location, device, timing, account age`,
+        medical: `${getPrimary('medical')} validates clinical legitimacy then billing fraud patterns`,
+        ecommerce: `${getPrimary('ecommerce')} evaluates seller age, pricing, reviews, shipping`,
+        supply_chain: `${getPrimary('supply_chain')} examines supplier age, price variance, payment terms, documentation`,
       },
       color: 'text-sapphire-400'
     },
@@ -73,8 +75,8 @@ export default function HowItWorks() {
       output: {
         fraud_score: 87,
         risk_level: 'high',
-        explanation: 'Qwen3-32B analysis identifies high risk using financial reasoning. Red flags detected: unusually high transaction amount ($15,000), transaction from Nigeria (OFAC high-risk country), new or unrecognized device, transaction at 3:00 AM, account age only 2 days.',
-        model_used: 'Qwen/Qwen3-32B',
+        explanation: 'Analysis identifies high risk. Red flags: high amount, OFAC high-risk country, new device, odd hour, young account.',
+        model_used: getPrimary('banking'),
         processing_time_ms: 1847,
         similar_patterns: 5
       },

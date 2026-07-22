@@ -93,3 +93,22 @@ variable "environment" {
   type        = string
   default     = "prod"
 }
+
+variable "use_secret_manager" {
+  description = "Store API keys in GCP Secret Manager (recommended). Set false for zero-cost plain env vars."
+  type        = bool
+  default     = true
+}
+
+variable "allowed_origins" {
+  description = "Comma-separated list of origins allowed by backend CORS (e.g. the frontend Cloud Run URL)"
+  type        = string
+  default     = "*"
+}
+
+variable "fraudforge_api_key" {
+  description = "Optional API key required (X-API-Key header) on /api/detect. Empty = auth disabled (demo mode)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

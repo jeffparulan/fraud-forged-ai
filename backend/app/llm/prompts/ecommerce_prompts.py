@@ -74,7 +74,7 @@ SCORING GUIDELINES (STRICT - be conservative and flag suspicious transactions):
 REQUIRED OUTPUT — use EXACTLY this format, no deviations:
 FRAUD_SCORE: [integer 0-100, NOT a percentage sign, NOT a range]
 RISK_LEVEL: [LOW | MEDIUM | HIGH | CRITICAL]
-RISK_FACTORS: [factor1, factor2, factor3, factor4, factor5]
+RISK_FACTORS: shipping/billing mismatch, high-risk destination, new account, unusual order velocity
 REASONING: [3-4 complete sentences explaining WHY this order is suspicious, WHAT fraud patterns are present, HOW likely this is fraudulent.]
 
 SCORE CALIBRATION (mandatory — ignore these and your response will be discarded):

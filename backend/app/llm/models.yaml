@@ -1,0 +1,142 @@
+# FraudForge AI — single source of truth for model routing & display names.
+# Edit this file to swap models; Python + /api/models + frontend all read from here.
+#
+# Free-tier note (OpenRouter, July 2026):
+#   Live:  nemotron-3-ultra / super / nano-30b / nano-9b (:free)
+#   Gone:  qwen/*:free, meta-llama/*:free (404)
+# HF chat (Qwen / MedGemma) needs Inference credits (402 without); embeddings stay free.
+
+version: 1
+
+inference:
+  openrouter:
+    max_tokens: 1536
+    temperature: 0.2
+    timeout_seconds: 120
+  hf:
+    max_tokens: 1024
+    temperature: 0.2
+
+# Reusable model definitions (referenced by sectors below)
+catalog:
+  qwen3_32b:
+    id: Qwen/Qwen3-32B
+    provider: hf
+    display: Qwen3-32B
+    brand: qwen
+
+  medgemma_27b:
+    id: google/medgemma-27b-text-it
+    provider: hf
+    display: MedGemma-27B
+    brand: google
+
+  nemotron_ultra:
+    id: nvidia/nemotron-3-ultra-550b-a55b:free
+    provider: openrouter
+    display: Nemotron-Ultra-550B
+    brand: nvidia
+
+  nemotron_super:
+    id: nvidia/nemotron-3-super-120b-a12b:free
+    provider: openrouter
+    display: Nemotron-Super-120B
+    brand: nvidia
+
+  nemotron_nano_30b:
+    id: nvidia/nemotron-3-nano-30b-a3b:free
+    provider: openrouter
+    display: Nemotron-3-Nano-30B
+    brand: nvidia
+
+  nemotron_nano_9b:
+    id: nvidia/nemotron-nano-9b-v2:free
+    provider: openrouter
+    display: Nemotron-Nano-9B
+    brand: nvidia
+
+# Shared OpenRouter FREE fallback order (referenced by sectors)
+free_fallback_chain:
+  - nemotron_super
+  - nemotron_ultra
+  - nemotron_nano_30b
+  - nemotron_nano_9b
+
+sectors:
+  banking:
+    label: Banking & Crypto
+    route_display: Qwen3-32B (HF Inference)
+    ui_model: Qwen3-32B (HF Inference)
+    blurb: Financial reasoning and AML detection with Qwen (Hugging Face)
+    primary: qwen3_32b
+    # Prefer Super first on free path (faster / more reliable than Ultra when HF 402s)
+    fallbacks:
+      - nemotron_super
+      - nemotron_ultra
+      - nemotron_nano_30b
+      - nemotron_nano_9b
+
+  medical:
+    label: Healthcare & Medical Claims
+    route_display: "Two-Stage: MedGemma-27B → Qwen3-32B"
+    ui_model: "Two-Stage: MedGemma-27B → Qwen3-32B"
+    blurb: MedGemma clinical validation, then Qwen fraud pattern analysis
+    two_stage: true
+    stage1:
+      ref: medgemma_27b
+      name: Clinical Legitimacy Validation
+      purpose: Validate medical coherence, diagnosis-procedure compatibility, clinical plausibility
+    stage2:
+      ref: qwen3_32b
+      name: Fraud Pattern Analysis
+      purpose: Analyze billing behavior, cost outliers, peer deviation, fraud patterns
+    fallbacks:
+      - nemotron_super
+      - nemotron_ultra
+      - nemotron_nano_30b
+      - nemotron_nano_9b
+
+  ecommerce:
+    label: E-commerce & Marketplace
+    route_display: Nemotron-Ultra-550B (OpenRouter FREE)
+    ui_model: Nemotron-Ultra-550B (OpenRouter)
+    blurb: Marketplace fraud and refund-abuse detection with NVIDIA Nemotron
+    primary: nemotron_ultra
+    fallbacks:
+      - nemotron_super
+      - nemotron_nano_30b
+      - nemotron_nano_9b
+
+  supply_chain:
+    label: Supply Chain & Logistics
+    route_display: Nemotron-Ultra-550B (OpenRouter FREE)
+    ui_model: Nemotron-Ultra-550B (OpenRouter)
+    blurb: Supplier and logistics fraud detection with NVIDIA Nemotron
+    primary: nemotron_ultra
+    fallbacks:
+      - nemotron_super
+      - nemotron_nano_30b
+      - nemotron_nano_9b
+
+# OFAC / high-risk location field mapping (used by pre-checks)
+location_fields:
+  banking:
+    - source_country
+    - destination_country
+    - location
+  medical:
+    - provider_location
+    - patient_location
+    - billing_address
+    - service_location
+  ecommerce:
+    - shipping_location
+    - shipping_address
+    - billing_address
+    - origin_country
+  supply_chain:
+    - supplier_location
+    - supplier_country
+    - origin_country
+    - shipping_location
+    - billing_address

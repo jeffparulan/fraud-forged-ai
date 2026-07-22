@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 echo "FraudForge AI — Production Deployment (Cloud Run)"
 echo "================================================="
 
@@ -12,10 +15,17 @@ NC='\033[0m'
 # ----------------------------
 # CONFIG
 # ----------------------------
-PROJECT_ID="gen-lang-client-0691181644"
+# Project ID comes from GCP_PROJECT_ID env var or .env (no hardcoded default)
+PROJECT_ID="${GCP_PROJECT_ID:-}"
 REPO="fraud-forge-images"
 LOCATION="us-central1"
 FULL_PATH="$LOCATION-docker.pkg.dev/$PROJECT_ID/$REPO"
+STATE_BUCKET="${PROJECT_ID}-terraform-state"
+
+CHECK_ONLY=false
+if [[ "${1:-}" == "--check" ]]; then
+  CHECK_ONLY=true
+fi
 
 # Load .env for Terraform vars (tokens) - single source of truth
 if [ -f .env ]; then
@@ -23,26 +33,102 @@ if [ -f .env ]; then
   set -a
   source .env
   set +a
+  # Refresh PROJECT_ID in case .env provided it
+  PROJECT_ID="${GCP_PROJECT_ID:-$PROJECT_ID}"
   # Map .env vars to Terraform TF_VAR_* (Terraform auto-picks these up)
-  export TF_VAR_project_id="${GCP_PROJECT_ID:-$PROJECT_ID}"
+  export TF_VAR_project_id="$PROJECT_ID"
   export TF_VAR_huggingface_token="${HUGGINGFACE_API_TOKEN:-}"
   export TF_VAR_openrouter_key="${OPENROUTER_API_KEY:-}"
   export TF_VAR_pinecone_api_key="${PINECONE_API_KEY:-}"
   export TF_VAR_pinecone_index_name="${PINECONE_INDEX_NAME:-fraudforge-master}"
   export TF_VAR_pinecone_host="${PINECONE_HOST:-}"
+  export TF_VAR_allowed_origins="${ALLOWED_ORIGINS:-*}"
+  export TF_VAR_fraudforge_api_key="${FRAUDFORGE_API_KEY:-}"
 else
   echo -e "${YELLOW}No .env found - using terraform.tfvars for tokens${NC}"
   export TF_VAR_project_id="$PROJECT_ID"
 fi
+
+if [[ -z "$PROJECT_ID" ]]; then
+  echo -e "${RED}GCP_PROJECT_ID is not set. Add it to .env or export it before running.${NC}"
+  exit 1
+fi
+STATE_BUCKET="${PROJECT_ID}-terraform-state"
+FULL_PATH="$LOCATION-docker.pkg.dev/$PROJECT_ID/$REPO"
 
 gcloud config set project "$PROJECT_ID" >/dev/null
 
 # ----------------------------
 # TOOLING CHECK
 # ----------------------------
-for tool in gcloud terraform docker jq; do
+for tool in gcloud terraform docker gsutil curl; do
     command -v $tool >/dev/null || { echo -e "${RED}$tool is missing${NC}"; exit 1; }
 done
+
+if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+  echo -e "${RED}No active gcloud account. Run: gcloud auth login${NC}"
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo -e "${RED}Docker is not running. Start Docker Desktop first.${NC}"
+  exit 1
+fi
+
+echo -e "${YELLOW}Checking required Google APIs...${NC}"
+if ! gcloud services list --enabled --format="value(name)" >/dev/null 2>&1; then
+  echo -e "${RED}Cannot query enabled services in project ${PROJECT_ID}.${NC}"
+  echo -e "${YELLOW}Most likely Service Usage API is disabled or you lack permissions.${NC}"
+  echo "Enable it first:"
+  echo "  https://console.developers.google.com/apis/api/serviceusage.googleapis.com/overview?project=${PROJECT_ID}"
+  exit 1
+fi
+REQUIRED_APIS=(
+  run.googleapis.com
+  artifactregistry.googleapis.com
+  cloudresourcemanager.googleapis.com
+  iam.googleapis.com
+  secretmanager.googleapis.com
+)
+for api in "${REQUIRED_APIS[@]}"; do
+  if ! gcloud services list --enabled --filter="name:$api" --format="value(name)" | grep -q "^$api$"; then
+    echo -e "${YELLOW}Enabling API: $api${NC}"
+    gcloud services enable "$api" --project "$PROJECT_ID" >/dev/null
+  fi
+done
+
+echo -e "${YELLOW}Checking Terraform backend state bucket...${NC}"
+if ! gsutil ls -b "gs://${STATE_BUCKET}" >/dev/null 2>&1; then
+  echo -e "${RED}Missing state bucket gs://${STATE_BUCKET}${NC}"
+  echo -e "${YELLOW}Create it once:${NC}"
+  echo "  gcloud storage buckets create gs://${STATE_BUCKET} --location=${LOCATION} --project=${PROJECT_ID}"
+  exit 1
+fi
+
+echo -e "${YELLOW}Checking required deployment variables...${NC}"
+missing=()
+for var in TF_VAR_huggingface_token TF_VAR_openrouter_key TF_VAR_pinecone_api_key TF_VAR_pinecone_host; do
+  if [[ -z "${!var:-}" ]]; then
+    missing+=("$var")
+  fi
+done
+if (( ${#missing[@]} > 0 )); then
+  echo -e "${RED}Missing required variables:${NC} ${missing[*]}"
+  echo -e "${YELLOW}Set them in .env (preferred) or terraform.tfvars.${NC}"
+  exit 1
+fi
+
+echo -e "${YELLOW}Running Terraform init/validate preflight...${NC}"
+pushd infrastructure >/dev/null
+terraform init -upgrade -input=false -backend-config="bucket=${STATE_BUCKET}" >/dev/null
+terraform validate >/dev/null
+popd >/dev/null
+
+if [[ "$CHECK_ONLY" == "true" ]]; then
+  echo -e "${GREEN}Preflight OK. Deployment prerequisites are satisfied.${NC}"
+  echo -e "${GREEN}Run without --check to deploy.${NC}"
+  exit 0
+fi
 
 # ----------------------------
 # ENSURE ARTIFACT REGISTRY REPO
@@ -76,28 +162,47 @@ docker push "$FULL_PATH/fraud-forge-backend:latest"
 # ----------------------------
 # STEP 2: DEPLOY BACKEND ONLY via Terraform (get real URL)
 # ----------------------------
-echo -e "${YELLOW}Deploying backend via Terraform (this gives us the real URL)...${NC}"
-cd infrastructure
+echo -e "${YELLOW}Forcing backend rollout from latest image...${NC}"
+gcloud run deploy fraud-forge-backend \
+  --project "$PROJECT_ID" \
+  --region "$LOCATION" \
+  --platform managed \
+  --image "$FULL_PATH/fraud-forge-backend:latest" \
+  --allow-unauthenticated \
+  --quiet >/dev/null
 
-terraform init -upgrade >/dev/null
-
-terraform apply \
-  -target=google_cloud_run_service.backend \
-  -target=google_cloud_run_service_iam_member.backend_public \
-  -auto-approve
-
-# Extract the live backend URL
-BACKEND_URL=$(terraform output -raw backend_url)
+BACKEND_URL=$(gcloud run services describe fraud-forge-backend \
+  --project "$PROJECT_ID" \
+  --region "$LOCATION" \
+  --format='value(status.url)')
 echo -e "${GREEN}Backend is live at: $BACKEND_URL${NC}"
 
-cd ..
+echo -e "${YELLOW}Verifying backend health endpoint...${NC}"
+for i in {1..20}; do
+  if curl -fsS "${BACKEND_URL}/health" >/dev/null 2>&1; then
+    echo -e "${GREEN}Backend health check passed.${NC}"
+    break
+  fi
+  if [[ $i -eq 20 ]]; then
+    echo -e "${RED}Backend health check failed after deploy: ${BACKEND_URL}/health${NC}"
+    exit 1
+  fi
+  sleep 3
+done
 
 # ----------------------------
 # STEP 3: BUILD FRONTEND WITH CORRECT BACKEND URL
 # ----------------------------
-echo -e "${YELLOW}Building frontend with API URL = $BACKEND_URL${NC}"
+# Build frontend against the canonical (project-number) backend URL used in resume/LinkedIn
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)' 2>/dev/null || true)
+if [[ -n "${PROJECT_NUMBER:-}" ]]; then
+  FRONTEND_BUILD_API_URL="https://fraud-forge-backend-${PROJECT_NUMBER}.${LOCATION}.run.app"
+else
+  FRONTEND_BUILD_API_URL="$BACKEND_URL"
+fi
+echo -e "${YELLOW}Building frontend with API URL = $FRONTEND_BUILD_API_URL${NC}"
 docker build --platform linux/amd64 \
-  --build-arg NEXT_PUBLIC_API_URL="$BACKEND_URL" \
+  --build-arg NEXT_PUBLIC_API_URL="$FRONTEND_BUILD_API_URL" \
   -t "$FULL_PATH/fraud-forge-frontend:latest" \
   ./frontend
 
@@ -107,8 +212,17 @@ docker push "$FULL_PATH/fraud-forge-frontend:latest"
 # ----------------------------
 # STEP 4: DEPLOY FRONTEND (and anything else)
 # ----------------------------
-echo -e "${YELLOW}Deploying frontend + full infra...${NC}"
-cd infrastructure
+echo -e "${YELLOW}Forcing frontend rollout from latest image...${NC}"
+gcloud run deploy fraud-forge-frontend \
+  --project "$PROJECT_ID" \
+  --region "$LOCATION" \
+  --platform managed \
+  --image "$FULL_PATH/fraud-forge-frontend:latest" \
+  --allow-unauthenticated \
+  --quiet >/dev/null
+
+echo -e "${YELLOW}Syncing full infra via Terraform (IAM/env/state)...${NC}"
+pushd infrastructure >/dev/null
 
 # Check if terraform.tfvars exists, if not use example as template
 if [ ! -f terraform.tfvars ]; then
@@ -116,12 +230,29 @@ if [ ! -f terraform.tfvars ]; then
     echo -e "${YELLOW}   You may need to create terraform.tfvars with your actual values.${NC}"
 fi
 
-# Apply with auto-approve (will prompt for variables if terraform.tfvars doesn't exist)
+# Full apply only — avoid -target (breaks when IAM resources use count / moved addresses)
+terraform init -upgrade -backend-config="bucket=${STATE_BUCKET}" >/dev/null
 terraform apply -auto-approve
 
 FRONTEND_URL=$(terraform output -raw frontend_url)
+BACKEND_URL=$(terraform output -raw backend_url 2>/dev/null || echo "$BACKEND_URL")
 
-cd ..
+# Prefer the project-number form for CORS + public sharing (resume / LinkedIn)
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)' 2>/dev/null || echo "203639324676")
+CANONICAL_FRONTEND="https://fraud-forge-frontend-${PROJECT_NUMBER}.${LOCATION}.run.app"
+CANONICAL_BACKEND="https://fraud-forge-backend-${PROJECT_NUMBER}.${LOCATION}.run.app"
+HASH_FRONTEND="$FRONTEND_URL"
+HASH_BACKEND="$BACKEND_URL"
+
+CORS_ORIGINS="${CANONICAL_FRONTEND},${HASH_FRONTEND},http://localhost:3000,http://127.0.0.1:3000"
+
+gcloud run services update fraud-forge-backend \
+  --project "$PROJECT_ID" \
+  --region "$LOCATION" \
+  --update-env-vars "^|^ALLOWED_ORIGINS=${CORS_ORIGINS}" \
+  --quiet >/dev/null || true
+
+popd >/dev/null
 
 # ----------------------------
 # FINAL OUTPUT
@@ -129,10 +260,12 @@ cd ..
 echo ""
 echo -e "${GREEN}FRAUDFORGE AI IS FULLY LIVE AND WORKING!${NC}"
 echo ""
-echo -e "Frontend : $FRONTEND_URL"
-echo -e "Backend  : $BACKEND_URL"
+echo -e "Public (resume/LinkedIn): $CANONICAL_FRONTEND"
+echo -e "Frontend (hash URL)     : $HASH_FRONTEND"
+echo -e "Backend                 : $CANONICAL_BACKEND"
+echo -e "Backend (hash URL)      : $HASH_BACKEND"
 echo ""
-echo "Share this on LinkedIn (bonus points if you add a custom domain):"
-echo "     $FRONTEND_URL"
+echo "Share this on LinkedIn:"
+echo "     $CANONICAL_FRONTEND"
 echo ""
 echo "No more localhost:8000 errors — ever"

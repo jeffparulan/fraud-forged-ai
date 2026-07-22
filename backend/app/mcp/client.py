@@ -43,6 +43,22 @@ class MCPClient:
             self.enabled = True
             logger.info(f"✅ MCP Client initialized: {self.mcp_server_url}")
 
+    def health_check(self) -> Dict[str, Any]:
+        """Lightweight MCP server reachability probe (soft-fail friendly)."""
+        if not self.enabled:
+            return {"ok": False, "detail": "MCP not enabled"}
+        try:
+            response = httpx.get(f"{self.mcp_server_url}/health", timeout=3.0)
+            if response.status_code == 200:
+                return {"ok": True, "detail": "healthy"}
+            # Some MCP servers only expose /tools/list
+            response = httpx.post(f"{self.mcp_server_url}/tools/list", timeout=3.0)
+            if response.status_code == 200:
+                return {"ok": True, "detail": "tools reachable"}
+            return {"ok": False, "detail": f"HTTP {response.status_code}"}
+        except Exception as e:
+            return {"ok": False, "detail": str(e)}
+
     def get_tools(self) -> List[Dict[str, Any]]:
         """
         Discover available MCP tools.

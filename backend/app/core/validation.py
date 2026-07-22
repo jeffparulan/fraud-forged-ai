@@ -68,6 +68,18 @@ def validate_llm_result(
 
         logger.info(f"[LLM] Attempting {provider_label} inference for {sector} (model: {primary_model})")
         hf_result = hf_client.analyze_fraud(sector, enhanced_data, rag_context=rag_context)
+        if not hf_result or hf_result.get("score_parsed") is False:
+            logger.warning(
+                f"[LLM] {provider_label} returned no usable score — using rule-based"
+            )
+            return {
+                "use_hf": False,
+                "hf_result": hf_result,
+                "rule_based_score": rule_based_score,
+                "rule_based_risk": rule_based_risk,
+                "provider_label": provider_label,
+            }
+
         hf_score = hf_result["fraud_score"]
         hf_risk = hf_result.get("risk_level", "").lower()
 

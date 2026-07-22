@@ -3,15 +3,17 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Building2, Heart, ShoppingCart, FileCheck, TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react'
+import { useModelSummary } from '@/lib/models'
 
 export default function UseCases() {
+  const { getPrimary, summary } = useModelSummary()
   const useCases = [
     {
       icon: Building2,
       title: 'Banking & Crypto Exchanges',
       description: 'Detect Rug Pulls, AML Risks, ATOs & Synthetics in Seconds—Banking-Proof Your Ops',
       challenge: 'Need enterprise-grade fraud detection but can\'t afford million-dollar platforms',
-      solution: 'FraudForge AI delivers Qwen3-32B (HF Inference) powered fraud detection with advanced financial reasoning for banking and crypto — no expensive licensing required.',
+      solution: `FraudForge AI routes banking through ${getPrimary('banking')} — ${summary.banking?.blurb || 'financial fraud reasoning without enterprise licensing.'}`,
       results: [
         'Escape $500K–$3M+ annual licensing and consultant lock-in.',
         'Streamlined deployment with comprehensive guide',
@@ -25,7 +27,7 @@ export default function UseCases() {
       title: 'Healthcare Providers',
       description: 'Catch fraudulent claims before they\'re paid',
       challenge: 'Billions lost annually to medical billing fraud and false claims',
-      solution: 'Two-Stage Pipeline: MedGemma-27B (HF Inference) validates clinical legitimacy (diagnosis-procedure compatibility), then Qwen3-32B (HF Inference) detects fraud patterns (upcoding, unbundling, billing anomalies).',
+      solution: `${getPrimary('medical')}: ${summary.medical?.blurb || 'clinical legitimacy then billing fraud analysis.'}`,
       results: [
         'Reduce fraud losses by 85%+',
         'Process 10K+ claims per day',
@@ -38,30 +40,30 @@ export default function UseCases() {
       icon: ShoppingCart,
       title: 'E-commerce Platforms',
       description: 'Real-time seller/buyer fraud screening',
-      challenge: 'Fake sellers, counterfeit products, and review manipulation damage trust',
-      solution: 'Nemotron-Super-120B (OpenRouter FREE, Finance #24, 1M context) uses 120B hybrid MoE reasoning to detect scam patterns, refund abuse, and seller manipulation',
+      challenge: 'Marketplace fraud erodes trust and margin',
+      solution: `${getPrimary('ecommerce')} — ${summary.ecommerce?.blurb || 'marketplace fraud reasoning.'}`,
       results: [
-        '+45-60% detection gain on scam listings',
-        'Identify fake review patterns',
-        'Protect buyer payment info',
-        'Maintain marketplace integrity'
+        'Cut chargebacks and refund abuse',
+        'Flag new-seller scams early',
+        'Explainable risk for ops teams',
+        'Sector-tuned prompts + RAG patterns'
       ],
-      color: 'pink'
+      color: 'emerald'
     },
     {
       icon: FileCheck,
       title: 'Supply Chain & Procurement',
-      description: 'Detect supplier fraud and kickback schemes',
-      challenge: 'Ghost suppliers, inflated invoices, and kickback schemes cost billions annually',
-      solution: 'Nemotron-Super-120B (OpenRouter FREE, Finance #24, 1M context window) analyzes supplier patterns, pricing anomalies, logistics, and documentation gaps with long-context 120B hybrid MoE reasoning',
+      description: 'Screen suppliers before the wire goes out',
+      challenge: 'Ghost vendors and invoice fraud hide in complex logistics docs',
+      solution: `${getPrimary('supply_chain')} — ${summary.supply_chain?.blurb || 'long-context logistics fraud analysis.'}`,
       results: [
-        'Prevent ghost supplier scams',
-        'Detect price manipulation',
-        'Flag kickback patterns',
-        'Verify supplier credentials'
+        'Catch shell suppliers and price outliers',
+        'Documentation + delivery variance checks',
+        'OFAC / high-risk country pre-checks',
+        'Full LangGraph decision trace'
       ],
-      color: 'green'
-    }
+      color: 'orange'
+    },
   ]
 
   const comparison = [

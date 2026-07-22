@@ -57,7 +57,7 @@ SCORING GUIDELINES (STRICT - be conservative and flag suspicious transactions):
 REQUIRED OUTPUT — use EXACTLY this format, no deviations:
 FRAUD_SCORE: [integer 0-100, NOT a percentage sign, NOT a range]
 RISK_LEVEL: [LOW | MEDIUM | HIGH | CRITICAL]
-RISK_FACTORS: [factor1, factor2, factor3, factor4, factor5]
+RISK_FACTORS: OFAC destination country, VPN/proxy IP, unverified KYC, new account (< 7 days)
 REASONING: [3-4 complete sentences citing ALL red flags: source/destination country, IP address, KYC status, account age, transaction velocity. Explain severity.]
 
 SCORE CALIBRATION (mandatory — ignore these and your response will be discarded):

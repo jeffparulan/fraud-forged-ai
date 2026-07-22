@@ -11,6 +11,30 @@ export interface FraudDetectionRequest {
   data: Record<string, any>
 }
 
+export interface DecisionTraceStep {
+  node: string
+  title: string
+  detail: string
+  status: 'ok' | 'empty' | 'fallback'
+  latency_ms?: number
+}
+
+export interface PipelineMeta {
+  mcp_status?: string
+  rag_top_score?: number
+  rag_avg_score?: number
+  embedding_source?: string
+  guardrail_adjusted?: boolean
+  analysis_method?: string
+  nodes?: string[]
+}
+
+export interface ScoreBreakdownItem {
+  label: string
+  points: number
+  signal: string
+}
+
 export interface FraudDetectionResponse {
   fraud_score: number
   risk_level: string
@@ -18,6 +42,10 @@ export interface FraudDetectionResponse {
   model_used: string
   processing_time_ms: number
   similar_patterns?: number
+  risk_factors?: string[]
+  score_breakdown?: ScoreBreakdownItem[]
+  decision_trace?: DecisionTraceStep[]
+  pipeline_meta?: PipelineMeta
 }
 
 function mapHttpError(status: number, fallback: string): Error {

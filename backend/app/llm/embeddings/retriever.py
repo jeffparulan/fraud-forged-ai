@@ -30,20 +30,22 @@ def query_similar_patterns(
     sector: str,
     query_embedding: List[float],
     n_results: int = 5,
+    embedding_source: str = "unknown",
 ) -> Dict[str, Any]:
     """
     Query Pinecone for similar fraud patterns.
 
-    Args:
-        index: Pinecone index
-        namespace: Pinecone namespace
-        sector: Sector filter (banking, medical, ecommerce, supply_chain)
-        query_embedding: Query vector
-        n_results: Max results to return
-
-    Returns:
-        Dict with context, count, patterns
+    Returns context, count, patterns, plus similarity provenance for the
+    decision-trace UI (top_score, avg_score, embedding_source).
     """
+    empty = {
+        "context": "No similar patterns found.",
+        "count": 0,
+        "patterns": [],
+        "top_score": 0.0,
+        "avg_score": 0.0,
+        "embedding_source": embedding_source,
+    }
     try:
         logger.info(f"🔍 [Pinecone] Executing query with filter: sector='{sector}' in namespace '{namespace}'")
         results = index.query(
@@ -67,20 +69,26 @@ def query_similar_patterns(
             results.matches = filtered[:n_results]
 
     if not results.matches:
-        return {"context": "No similar patterns found.", "count": 0, "patterns": []}
+        return empty
 
     patterns = []
+    scores = []
     for match in results.matches:
         metadata = match.metadata or {}
+        score = float(match.score or 0.0)
+        scores.append(score)
         patterns.append({
             "description": metadata.get("description", ""),
             "risk_level": metadata.get("risk_level", "unknown"),
             "indicators": json.loads(metadata.get("indicators", "[]")),
-            "score": match.score,
+            "score": score,
         })
 
     return {
         "context": format_fraud_context(patterns),
         "count": len(patterns),
         "patterns": patterns,
+        "top_score": max(scores) if scores else 0.0,
+        "avg_score": (sum(scores) / len(scores)) if scores else 0.0,
+        "embedding_source": embedding_source,
     }

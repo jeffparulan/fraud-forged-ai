@@ -1,15 +1,16 @@
 """Fraud detection endpoint."""
 import time
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.request import FraudDetectionRequest
+from app.api.security import require_api_key, enforce_rate_limit
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/detect")
+@router.post("/detect", dependencies=[Depends(require_api_key), Depends(enforce_rate_limit)])
 async def detect_fraud(request: FraudDetectionRequest):
     """
     Main fraud detection endpoint.
@@ -26,10 +27,10 @@ async def detect_fraud(request: FraudDetectionRequest):
             detail="Service is still initializing. Please try again in a moment."
         )
 
-    router = app_state["router"]
+    langgraph_router = app_state["router"]
 
     try:
-        result = await router.route_and_analyze(
+        result = await langgraph_router.route_and_analyze(
             sector=request.sector,
             data=request.data
         )
@@ -43,14 +44,18 @@ async def detect_fraud(request: FraudDetectionRequest):
             "model_used": result["model_used"],
             "processing_time_ms": processing_time_ms,
             "similar_patterns": result.get("similar_patterns", 0),
-            "risk_factors": result.get("risk_factors", [])
+            "risk_factors": result.get("risk_factors", []),
+            "score_breakdown": result.get("score_breakdown", []),
+            "decision_trace": result.get("decision_trace", []),
+            "pipeline_meta": result.get("pipeline_meta", {}),
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        # Log full detail server-side; never leak internals to the client
         logger.error(f"Fraud detection error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Fraud detection failed: {str(e)}"
+            detail="Fraud detection failed due to an internal error. Please try again."
         )

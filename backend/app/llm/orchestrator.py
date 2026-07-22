@@ -11,7 +11,13 @@ from typing import Dict, Any, Optional, List, Tuple
 import httpx
 from huggingface_hub import InferenceClient
 
-from .config import SECTOR_MODELS, SECTOR_LOCATION_FIELDS, get_sector_model_candidates
+from .config import (
+    SECTOR_MODELS,
+    SECTOR_LOCATION_FIELDS,
+    get_sector_model_candidates,
+    get_inference_defaults,
+    format_model_name,
+)
 from .ofac import check_ofac_in_data
 from .prompts import build_prompt, build_stage1_clinical_prompt, build_stage2_fraud_prompt
 from .parsing import parse_model_response, get_risk_level
@@ -30,34 +36,10 @@ except ImportError:
 
 class LLMClient:
     """
-    Multi-provider LLM client for fraud detection with cost-optimized model alignment.
-    
-    ARCHITECTURE:
-    - Single-stage: Banking, E-commerce, Supply Chain use one LLM call
-    - Two-stage: Medical uses sequential MedGemma-27B (clinical) → Qwen3-32B (fraud) pipeline
+    Multi-provider LLM client for fraud detection.
 
-    MODEL SELECTION (May 2026):
-    - Banking:      Qwen3-32B (HF Inference via Novita/Together/Fireworks) - Financial reasoning, AML
-    - Medical:      TWO-STAGE
-      ├─ Stage 1:  MedGemma-27B (HF Inference via Featherless AI) - Clinical legitimacy validation
-      │            Google's medical-specialist LLM; GATED — accept Health AI Developer Foundation
-      │            terms at huggingface.co/google/medgemma-27b-text-it before first use.
-      │            If gated/unavailable, falls back to GPT-OSS-120B (OpenRouter FREE).
-      └─ Stage 2:  Qwen3-32B (HF Inference) - Fraud pattern analysis
-    - E-commerce:   Nemotron-Super-120B (OpenRouter FREE, Finance #24) - Calibrated marketplace fraud
-    - Supply Chain: Nemotron-Super-120B (OpenRouter FREE, Finance #24) - Calibrated logistics fraud
-      NOTE: Tencent Hy3 Preview replaced (consistent neutral/medium bias — unreliable for fraud scoring)
-
-    FALLBACK CHAIN (OpenRouter FREE, by Finance leaderboard rank):
-    1. openai/gpt-oss-120b:free               (Finance #20, 120B MoE — Medical Stage 1 fallback)
-    2. tencent/hy3-preview:free               (Finance #4, fallback only)
-    3. google/gemma-4-31b-it:free             (30.7B dense, 262K context)
-    4. meta-llama/llama-3.3-70b-instruct:free (Banking only)
-
-    COST OPTIMIZATION:
-    - Pre-checks (OFAC, extreme values) bypass expensive LLM calls
-    - HF Inference: pay-per-token via multiple providers for Banking/Medical
-    - OpenRouter FREE: $0/month for E-commerce/Supply Chain primaries + all fallbacks
+    Model routing, display names, and inference knobs live in models.yaml.
+    This class only executes provider calls + parsing/fallbacks.
     """
     
     def __init__(self, api_token: Optional[str] = None):
@@ -351,14 +333,22 @@ class LLMClient:
                 result = None
 
             if result:
-                # Add model information to the response
-                result["model_used"] = _format_model_name(model_name, provider, is_fallback, fallback_number)
-                result["provider"] = provider
-                
-                if is_fallback:
-                    logger.info(f"✅ Fallback #{fallback_number} successful: Using {provider} - {model_name}")
-                
-                return result
+                # Reject hallucinated default scores so we try the next free-tier model
+                if result.get("score_parsed") is False:
+                    logger.warning(
+                        f"⚠️  {provider}/{model_name} returned unparsed score — trying next model"
+                    )
+                    result = None
+                else:
+                    result["model_used"] = format_model_name(
+                        model_name, provider, is_fallback, fallback_number
+                    )
+                    result["provider"] = provider
+                    if is_fallback:
+                        logger.info(
+                            f"✅ Fallback #{fallback_number} successful: Using {provider} - {model_name}"
+                        )
+                    return result
 
         # All providers + fallbacks failed, use rule-based scoring
         logger.warning("All LLM providers failed, falling back to rule-based scoring")
@@ -417,11 +407,12 @@ class LLMClient:
                     logger.info(f"  → Attempting chat_completion API with {model_name} (attempt {attempt + 1}/{max_retries})...")
                     messages = [{"role": "user", "content": prompt}]
                     
+                    hf_defaults = get_inference_defaults("hf")
                     response = self.client.chat_completion(
                         messages=messages,
                         model=model_name,
-                        max_tokens=512,
-                        temperature=0.5,  # Lower temperature for more precise, deterministic fraud analysis
+                        max_tokens=int(hf_defaults.get("max_tokens", 1024)),
+                        temperature=float(hf_defaults.get("temperature", 0.2)),
                         stream=False
                     )
                     
@@ -431,6 +422,9 @@ class LLMClient:
                     
                     # Parse the response to extract fraud score and reasoning
                     parsed = parse_model_response(str(generated_text), sector, data, is_clinical_stage=is_clinical_stage)
+                    if not is_clinical_stage and parsed.get("score_parsed") is False:
+                        logger.warning(f"HF {model_name} response could not be scored — skipping")
+                        return None
                     return parsed
                 
                 except Exception as chat_error:
@@ -447,6 +441,23 @@ class LLMClient:
                     
                     # Log error type only - avoid logging full error (may contain sensitive data)
                     logger.warning(f"⚠️  Chat completion error on attempt {attempt + 1}/{max_retries}: {type(chat_error).__name__}")
+
+                    # HF Inference without provider credits → 402. Fail fast to OpenRouter FREE.
+                    if (
+                        status_code == 402
+                        or "402" in error_str
+                        or "payment required" in error_str
+                    ):
+                        logger.warning(
+                            f"💳 HF Inference 402 Payment Required for {model_name} — "
+                            "skipping retries, falling through to OpenRouter FREE"
+                        )
+                        return None
+
+                    # Model not available on enabled providers
+                    if status_code == 404 or "not supported by any provider" in error_str:
+                        logger.warning(f"HF model unavailable: {model_name}")
+                        return None
                     
                     # If 400 Bad Request, check if this is a chat-only model
                     if status_code == 400 or "400" in error_str or "bad request" in error_str:
@@ -570,7 +581,7 @@ class LLMClient:
         return None
 
     def _try_openrouter_model(self, model_name: str, prompt: str, sector: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Call OpenRouter (e.g., nvidia/nemotron-3-nano-30b-a3b:free)."""
+        """Call OpenRouter free/paid chat models with enough budget for reasoning models."""
         if not self.openrouter_api_key:
             logger.warning("OPENROUTER_API_KEY not set, skipping OpenRouter model")
             return None
@@ -579,23 +590,36 @@ class LLMClient:
             headers = {
                 "Authorization": f"Bearer {self.openrouter_api_key}",
                 "Content-Type": "application/json",
-                # Recommended but optional metadata
                 "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://fraudforge.local"),
                 "X-Title": os.getenv("OPENROUTER_APP_NAME", "FraudForge AI"),
             }
+            # Nemotron free models spend hundreds of tokens on hidden reasoning before the
+            # visible FRAUD_SCORE line. Budget comes from models.yaml inference.openrouter.
+            or_defaults = get_inference_defaults("openrouter")
             payload = {
                 "model": model_name,
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 384,  # Reduced from 512 to speed up response (still enough for fraud analysis)
-                "temperature": 0.5,  # Lower temperature for more precise, deterministic fraud analysis
+                "max_tokens": int(or_defaults.get("max_tokens", 1536)),
+                "temperature": float(or_defaults.get("temperature", 0.2)),
             }
 
             resp = httpx.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=90.0,  # Increased timeout to 90s for free tier models which can be slower
+                timeout=float(or_defaults.get("timeout_seconds", 120)),
             )
+            if resp.status_code in (402, 404):
+                # Free slug removed / payment required — skip without retry noise
+                err_body = ""
+                try:
+                    err_body = str(resp.json().get("error", {}).get("message", ""))[:200]
+                except Exception:
+                    err_body = resp.text[:200]
+                logger.warning(
+                    f"OpenRouter {resp.status_code} for {model_name}: {err_body or 'unavailable'}"
+                )
+                return None
             resp.raise_for_status()
             data_json = resp.json()
             choices = data_json.get("choices") or []
@@ -603,10 +627,43 @@ class LLMClient:
                 logger.error(f"OpenRouter returned no choices for model {model_name}")
                 return None
 
-            generated_text = choices[0]["message"]["content"]
-            logger.info(f"✅ OpenRouter success with {model_name}")
+            message = choices[0].get("message") or {}
+            generated_text = (message.get("content") or "").strip()
+            finish_reason = choices[0].get("finish_reason")
+            usage = data_json.get("usage") or {}
+            reasoning_tokens = (
+                (usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0
+            )
+
+            if not generated_text:
+                # Some providers put the visible answer only in reasoning on edge cases
+                generated_text = (
+                    message.get("reasoning")
+                    or message.get("reasoning_content")
+                    or ""
+                ).strip()
+
+            if not generated_text:
+                logger.error(f"OpenRouter empty content for {model_name} (finish={finish_reason})")
+                return None
+
+            if finish_reason == "length" and "RISK_LEVEL" not in generated_text.upper():
+                logger.warning(
+                    f"OpenRouter truncated {model_name} before structured output "
+                    f"(reasoning_tokens={reasoning_tokens}); trying next model"
+                )
+                return None
+
+            logger.info(
+                f"✅ OpenRouter success with {model_name} "
+                f"(finish={finish_reason}, reasoning_tokens={reasoning_tokens}, "
+                f"content_len={len(generated_text)})"
+            )
 
             parsed = parse_model_response(str(generated_text), sector, data)
+            if parsed.get("score_parsed") is False:
+                logger.warning(f"OpenRouter {model_name} response could not be scored — skipping")
+                return None
             return parsed
 
         except Exception as e:
@@ -874,7 +931,7 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
             stage2_result = None
         
         # If Stage 2 fails, fallback to single-stage
-        if not stage2_result:
+        if not stage2_result or stage2_result.get("score_parsed") is False:
             logger.warning(f"⚠️  Stage 2 ({stage2_config['name']}) failed, trying fallbacks")
             return self._try_fallback_models(sector, data, rag_context, model_config)
         
@@ -902,7 +959,14 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
         )
 
         # Format model name to show two-stage pipeline
-        stage1_name = stage1_label.replace('gpt-oss-120b:free', 'GPT-OSS-120B').replace('medgemma-27b-text-it', 'MedGemma-27B')
+        stage1_name = stage1_label.replace('medgemma-27b-text-it', 'MedGemma-27B')
+        for old, new in (
+            ('qwen3-next-80b-a3b-instruct:free', 'Qwen3-Next-80B'),
+            ('nemotron-3-super-120b-a12b:free', 'Nemotron-Super-120B'),
+            ('nemotron-3-ultra-550b-a55b:free', 'Nemotron-Ultra-550B'),
+            ('llama-3.3-70b-instruct:free', 'Llama-3.3-70B'),
+        ):
+            stage1_name = stage1_name.replace(old, new)
         stage2_name = stage2_config['model'].split('/')[-1].replace('Qwen3-32B', 'Qwen3-32B')
         model_used = f"Two-Stage: {stage1_name} → {stage2_name}"
         
@@ -938,9 +1002,14 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
             else:
                 result = None
             
+            if result and result.get("score_parsed") is False:
+                logger.warning(f"⚠️  Fallback #{idx + 1} unparsed score — continuing")
+                result = None
+
             if result:
-                result["model_used"] = f"{model_name.split('/')[-1]} (Fallback #{idx + 1})"
+                result["model_used"] = format_model_name(model_name, provider, True, idx + 1)
                 result["provider"] = provider
+                logger.info(f"✅ Fallback #{idx + 1} successful: Using {provider} - {model_name}")
                 return result
         
         # All fallbacks failed
@@ -951,7 +1020,8 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
             "risk_factors": ["All LLM models unavailable"],
             "reasoning": "Unable to analyze - all models failed. Manual review required.",
             "model_used": "None (All Failed)",
-            "provider": "none"
+            "provider": "none",
+            "score_parsed": False,
         }
     
     def _fallback_analysis(self, sector: str, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -960,54 +1030,4 @@ Provider History: {data.get('provider_history', 'Unknown')}"""
 
         from app.core import analyze_fraud_rule_based
         return analyze_fraud_rule_based(sector, data)
-
-
-def _format_model_name(model_name: str, provider: str, is_fallback: bool, fallback_number: Optional[int]) -> str:
-    """Format model name for display in UI with provider and fallback information."""
-    mn = model_name.lower()
-    display_name = model_name
-
-    # Current generation models
-    if "qwen3-32b" in mn or "qwen3/32b" in mn:
-        display_name = "Qwen3-32B"
-    elif "medgemma-27b" in mn:
-        display_name = "MedGemma-27B"
-    elif "nemotron-3-super" in mn or "nemotron-super" in mn:
-        display_name = "Nemotron-Super-120B"
-    elif "hy3-preview" in mn:
-        display_name = "Tencent Hy3 Preview"
-    elif "gpt-oss-120b" in mn:
-        display_name = "GPT-OSS-120B"
-    elif "gemma-4-31b" in mn:
-        display_name = "Gemma-4-31B"
-    elif "llama-3.3-70b" in mn:
-        display_name = "Llama-3.3-70B"
-    # Legacy models kept for backward-compat display
-    elif "qwen2.5-72b" in mn:
-        display_name = "Qwen2.5-72B-Instruct"
-    elif "qwen2.5-32b" in mn:
-        display_name = "Qwen2.5-32B-Instruct"
-    elif "nemotron-nano-12b-v2-vl" in mn:
-        display_name = "Nemotron-2 (12B VL)"
-    elif "nemotron-3-nano-30b" in mn:
-        display_name = "Nemotron-3-Nano-30B"
-    elif "deepseek-v3" in mn:
-        display_name = "DeepSeek-V3"
-    elif "deepseek-r1" in mn:
-        display_name = "DeepSeek-R1"
-    elif "llama-3.1-70b" in mn:
-        display_name = "Llama-3.1-70B"
-    elif "medgemma" in mn:
-        display_name = "MedGemma-4B-IT" if "4b" in mn else "MedGemma"
-
-    provider_display = {
-        "hf": "HF Inference",
-        "hf_space": "HF Space",
-        "openrouter": "OpenRouter FREE",
-        "vertex": "Vertex AI",
-    }.get(provider, provider.upper())
-
-    if is_fallback and fallback_number is not None:
-        return f"{display_name} (Fallback #{fallback_number} - {provider_display})"
-    return f"{display_name} ({provider_display})"
 

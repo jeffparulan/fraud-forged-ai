@@ -6,23 +6,46 @@ terraform {
     }
   }
 
+  # Partial backend configuration: pass the state bucket at init time so the
+  # repo stays project-agnostic. deploy-terraform.sh does this automatically:
+  #   terraform init -backend-config="bucket=${PROJECT_ID}-terraform-state"
   backend "gcs" {
-    bucket = "gen-lang-client-0691181644-terraform-state"
     prefix = "terraform/state"
   }
 }
 
 provider "google" {
-  project = "gen-lang-client-0691181644"
-  region  = "us-central1"
-  billing_project       = var.project_id          
+  project               = var.project_id
+  region                = var.region
+  billing_project       = var.project_id
   user_project_override = true
+}
+
+locals {
+  image_repo = "${var.region}-docker.pkg.dev/${var.project_id}/fraud-forge-images"
+
+  # Sensitive values delivered to Cloud Run either via Secret Manager
+  # (use_secret_manager = true, recommended) or plain env vars (free tier).
+  backend_secrets = {
+    OPENROUTER_API_KEY    = var.openrouter_key
+    HUGGINGFACE_API_TOKEN = var.huggingface_token
+    PINECONE_API_KEY      = var.pinecone_api_key
+  }
+
+  # Non-sensitive configuration, always plain env vars.
+  backend_plain_env = {
+    PINECONE_INDEX_NAME = var.pinecone_index_name
+    PINECONE_HOST       = var.pinecone_host
+    ALLOWED_ORIGINS     = var.allowed_origins
+    FRAUDFORGE_API_KEY  = var.fraudforge_api_key
+    GCP_PROJECT_ID      = var.project_id
+  }
 }
 
 # ==================== BACKEND ====================
 resource "google_cloud_run_service" "backend" {
   name     = "fraud-forge-backend"
-  location = "us-central1"
+  location = var.region
 
   metadata {
     annotations = {
@@ -35,32 +58,42 @@ resource "google_cloud_run_service" "backend" {
       service_account_name = google_service_account.fraudforge_backend.email
 
       containers {
-        image = "us-central1-docker.pkg.dev/gen-lang-client-0691181644/fraud-forge-images/fraud-forge-backend:latest"
+        image = "${local.image_repo}/fraud-forge-backend:latest"
 
         ports {
           name           = "http1"
           container_port = 8080
         }
 
-        env {
-          name  = "OPENROUTER_API_KEY"
-          value = var.openrouter_key
+        dynamic "env" {
+          for_each = local.backend_plain_env
+          content {
+            name  = env.key
+            value = env.value
+          }
         }
-        env {
-          name  = "HUGGINGFACE_API_TOKEN"
-          value = var.huggingface_token
+
+        # Secrets as plain env vars (only when Secret Manager is disabled)
+        dynamic "env" {
+          for_each = var.use_secret_manager ? {} : local.backend_secrets
+          content {
+            name  = env.key
+            value = env.value
+          }
         }
-        env {
-          name  = "PINECONE_API_KEY"
-          value = var.pinecone_api_key
-        }
-        env {
-          name  = "PINECONE_INDEX_NAME"
-          value = var.pinecone_index_name
-        }
-        env {
-          name  = "PINECONE_HOST"
-          value = "https://fraudforge-master-kgn0lb7.svc.aped-4627-b74a.pinecone.io"
+
+        # Secrets referenced from Secret Manager (recommended)
+        dynamic "env" {
+          for_each = var.use_secret_manager ? local.backend_secrets : {}
+          content {
+            name = env.key
+            value_from {
+              secret_key_ref {
+                name = google_secret_manager_secret.app[env.key].secret_id
+                key  = "latest"
+              }
+            }
+          }
         }
 
         resources {
@@ -91,7 +124,7 @@ resource "google_cloud_run_service" "backend" {
 # ==================== FRONTEND WITH SECURITY CONTROLS ====================
 resource "google_cloud_run_service" "frontend" {
   name     = "fraud-forge-frontend"
-  location = "us-central1"
+  location = var.region
 
   metadata {
     annotations = {
@@ -103,25 +136,25 @@ resource "google_cloud_run_service" "frontend" {
     spec {
       # Use dedicated service account with minimal permissions
       service_account_name = google_service_account.frontend.email
-      
+
       containers {
-        image = "us-central1-docker.pkg.dev/gen-lang-client-0691181644/fraud-forge-images/fraud-forge-frontend:latest"
-        
+        image = "${local.image_repo}/fraud-forge-frontend:latest"
+
         ports {
           name           = "http1"
           container_port = 3000
         }
-        
+
         env {
           name  = "NEXT_PUBLIC_API_URL"
           value = google_cloud_run_service.backend.status[0].url
         }
-        
+
         env {
           name  = "NODE_ENV"
           value = "production"
         }
-        
+
         resources {
           limits = {
             cpu    = "1000m"
@@ -129,7 +162,7 @@ resource "google_cloud_run_service" "frontend" {
           }
         }
       }
-      
+
       timeout_seconds       = 300
       container_concurrency = 80
     }
@@ -167,7 +200,10 @@ resource "google_project_iam_member" "frontend_monitoring" {
 }
 
 # ==================== PUBLIC ACCESS ====================
+# Gated by enable_public_access. Set to false to remove unauthenticated
+# access (then front the services with IAP or call with an identity token).
 resource "google_cloud_run_service_iam_member" "backend_public" {
+  count    = var.enable_public_access ? 1 : 0
   service  = google_cloud_run_service.backend.name
   location = google_cloud_run_service.backend.location
   role     = "roles/run.invoker"
@@ -175,6 +211,7 @@ resource "google_cloud_run_service_iam_member" "backend_public" {
 }
 
 resource "google_cloud_run_service_iam_member" "frontend_public" {
+  count    = var.enable_public_access ? 1 : 0
   service  = google_cloud_run_service.frontend.name
   location = google_cloud_run_service.frontend.location
   role     = "roles/run.invoker"

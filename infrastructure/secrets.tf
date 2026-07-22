@@ -25,104 +25,50 @@ resource "google_project_iam_member" "backend_monitoring" {
   member  = "serviceAccount:${google_service_account.fraudforge_backend.email}"
 }
 
-# ==================== SECRETS ====================
-# 
-# ⚠️  SECRET MANAGER DISABLED TO AVOID CHARGES ($0.06 per secret per month)
-# 
-# Cloud Run now uses direct environment variables from terraform.tfvars (FREE!)
-# If you need to re-enable Secret Manager in the future, uncomment the resources below.
+# ==================== SECRET MANAGER ====================
 #
-# # Hugging Face API Token
-# resource "google_secret_manager_secret" "huggingface_token" {
-#   project   = var.project_id
-#   secret_id = "HUGGINGFACE_API_TOKEN"
-# 
-#   replication {
-#     auto {}
-#   }
-# 
-#   labels = {
-#     app         = "fraudforge-ai"
-#     environment = var.environment
-#     managed-by  = "terraform"
-#   }
-# }
-# 
-# resource "google_secret_manager_secret_iam_member" "backend_huggingface" {
-#   project   = var.project_id
-#   secret_id = google_secret_manager_secret.huggingface_token.secret_id
-#   role      = "roles/secretmanager.secretAccessor"
-#   member    = "serviceAccount:${google_service_account.fraudforge_backend.email}"
-# }
-# 
-# # OpenRouter API Key
-# resource "google_secret_manager_secret" "openrouter_key" {
-#   project   = var.project_id
-#   secret_id = "OPENROUTER_API_KEY"
-# 
-#   replication {
-#     auto {}
-#   }
-# 
-#   labels = {
-#     app         = "fraudforge-ai"
-#     environment = var.environment
-#     managed-by  = "terraform"
-#   }
-# }
-# 
-# resource "google_secret_manager_secret_iam_member" "backend_openrouter" {
-#   project   = var.project_id
-#   secret_id = google_secret_manager_secret.openrouter_key.secret_id
-#   role      = "roles/secretmanager.secretAccessor"
-#   member    = "serviceAccount:${google_service_account.fraudforge_backend.email}"
-# }
-# 
-# # Pinecone API Key
-# resource "google_secret_manager_secret" "pinecone_key" {
-#   project   = var.project_id
-#   secret_id = "PINECONE_API_KEY"
-# 
-#   replication {
-#     auto {}
-#   }
-# 
-#   labels = {
-#     app         = "fraudforge-ai"
-#     environment = var.environment
-#     managed-by  = "terraform"
-#   }
-# }
-# 
-# resource "google_secret_manager_secret_iam_member" "backend_pinecone_key" {
-#   project   = var.project_id
-#   secret_id = google_secret_manager_secret.pinecone_key.secret_id
-#   role      = "roles/secretmanager.secretAccessor"
-#   member    = "serviceAccount:${google_service_account.fraudforge_backend.email}"
-# }
-# 
-# # Pinecone Index Name
-# resource "google_secret_manager_secret" "pinecone_index" {
-#   project   = var.project_id
-#   secret_id = "PINECONE_INDEX_NAME"
-# 
-#   replication {
-#     auto {}
-#   }
-# 
-#   labels = {
-#     app         = "fraudforge-ai"
-#     environment = var.environment
-#     managed-by  = "terraform"
-#   }
-# }
-# 
-# resource "google_secret_manager_secret_iam_member" "backend_pinecone_index" {
-#   project   = var.project_id
-#   secret_id = google_secret_manager_secret.pinecone_index.secret_id
-#   role      = "roles/secretmanager.secretAccessor"
-#   member    = "serviceAccount:${google_service_account.fraudforge_backend.email}"
-# }
+# Enabled by default (use_secret_manager = true). Costs ~$0.06/secret/month;
+# set use_secret_manager = false in terraform.tfvars to fall back to plain
+# Cloud Run env vars for zero-cost demos (keys will be visible in the
+# Cloud Run console and Terraform state either way - state is sensitive!).
+
+locals {
+  managed_secrets = var.use_secret_manager ? {
+    OPENROUTER_API_KEY    = var.openrouter_key
+    HUGGINGFACE_API_TOKEN = var.huggingface_token
+    PINECONE_API_KEY      = var.pinecone_api_key
+  } : {}
+}
+
+resource "google_secret_manager_secret" "app" {
+  for_each  = local.managed_secrets
+  project   = var.project_id
+  secret_id = each.key
+
+  replication {
+    auto {}
+  }
+
+  labels = {
+    app         = "fraudforge-ai"
+    environment = var.environment
+    managed-by  = "terraform"
+  }
+}
+
+resource "google_secret_manager_secret_version" "app" {
+  for_each    = local.managed_secrets
+  secret      = google_secret_manager_secret.app[each.key].id
+  secret_data = each.value
+}
+
+resource "google_secret_manager_secret_iam_member" "backend_access" {
+  for_each  = local.managed_secrets
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.app[each.key].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.fraudforge_backend.email}"
+}
 
 # ==================== OUTPUTS ====================
 
@@ -131,23 +77,7 @@ output "backend_service_account_email" {
   description = "Email of the backend service account"
 }
 
-# Secret Manager outputs disabled (secrets moved to direct env vars)
-# output "huggingface_token_secret_name" {
-#   value       = google_secret_manager_secret.huggingface_token.secret_id
-#   description = "Name of the Hugging Face API token secret in Secret Manager"
-# }
-# 
-# output "openrouter_key_secret_name" {
-#   value       = google_secret_manager_secret.openrouter_key.secret_id
-#   description = "Name of the OpenRouter API key secret in Secret Manager"
-# }
-# 
-# output "pinecone_key_secret_name" {
-#   value       = google_secret_manager_secret.pinecone_key.secret_id
-#   description = "Name of the Pinecone API key secret in Secret Manager"
-# }
-# 
-# output "pinecone_index_secret_name" {
-#   value       = google_secret_manager_secret.pinecone_index.secret_id
-#   description = "Name of the Pinecone index name secret in Secret Manager"
-# }
+output "secret_manager_enabled" {
+  value       = var.use_secret_manager
+  description = "Whether API keys are stored in Secret Manager (vs plain env vars)"
+}

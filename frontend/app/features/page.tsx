@@ -47,34 +47,34 @@ export default function Features() {
       title: 'Multi-Industry Support',
       description: 'Four cost-optimized fraud-specialized LLMs',
       details: [
-        'Banking: Qwen3-32B (HF Inference — Financial Reasoning)',
-        'Healthcare: Two-Stage Pipeline — MedGemma-27B Clinical (HF Inference) → Qwen3-32B Fraud (HF Inference)',
-        'E-commerce: Nemotron-Super-120B (OpenRouter FREE — Marketplace Fraud Detection)',
-        'Supply Chain: Nemotron-Super-120B (OpenRouter FREE — Logistics Fraud Detection)'
+        'Banking & crypto (HF Qwen primary)',
+        'Medical two-stage clinical → fraud',
+        'E-commerce (OpenRouter Nemotron)',
+        'Supply chain (OpenRouter Nemotron)',
       ],
       color: 'text-pink-400'
     },
     {
       icon: Shield,
       title: 'Explainable AI',
-      description: 'Human-readable explanations for every fraud prediction',
+      description: 'Every verdict ships with a step-by-step pipeline decision trace',
       details: [
+        'LangGraph decision trace per request',
         'Risk factor breakdown',
-        'Confidence scoring',
-        'Similar pattern references',
-        'Audit trail generation'
+        'LLM-vs-rules cross-validation shown',
+        'Similar pattern references'
       ],
       color: 'text-blue-400'
     },
     {
       icon: Lock,
-      title: 'Enterprise Security',
-      description: 'IAP authentication and auto-scaling protection',
+      title: 'Security Controls',
+      description: 'API-key auth, rate limiting, and secrets in Secret Manager',
       details: [
-        'Identity-Aware Proxy',
-        'Auto-scale to zero',
-        'No database exposure',
-        'Cloud-native security'
+        'Optional API-key gate (X-API-Key)',
+        'Server-side rate limiting',
+        'GCP Secret Manager for keys',
+        'Auto-scale to zero, no database exposure'
       ],
       color: 'text-sapphire-400'
     }
@@ -132,7 +132,7 @@ export default function Features() {
     },
     {
       title: 'Multi-Model Inference',
-      description: 'Next-gen fraud detection using HF Inference (Qwen3-32B, MedGemma-27B) and OpenRouter FREE (Nemotron-Super-120B for E-commerce/Supply Chain) with intelligent fallback chains',
+      description: 'Sector-specialized models via Hugging Face Inference and OpenRouter FREE (Qwen, MedGemma, NVIDIA Nemotron)',
       icon: Cpu
     },
     {

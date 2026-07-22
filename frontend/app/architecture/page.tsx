@@ -4,8 +4,13 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Logo from '@/components/Logo'
 import { Database, Cpu, Zap, Shield, GitBranch, Box, Cloud, Lock } from 'lucide-react'
+import { useModelSummary, SectorId } from '@/lib/models'
 
 export default function Architecture() {
+  const { summary } = useModelSummary()
+  const sectorOrder: SectorId[] = ['banking', 'medical', 'ecommerce', 'supply_chain']
+  const modelColors = ['text-yellow-400', 'text-emerald-400', 'text-purple-400', 'text-orange-400']
+
   const techStack = [
     {
       category: 'Frontend',
@@ -31,12 +36,11 @@ export default function Architecture() {
     {
       category: 'AI Models',
       icon: Zap,
-      technologies: [
-        { name: 'Qwen3-32B', description: 'Banking & crypto (HF Inference — Financial Reasoning)', color: 'text-yellow-400' },
-        { name: 'MedGemma-27B → Qwen3-32B', description: 'Medical (HF Inference — Two-Stage: Clinical → Fraud)', color: 'text-emerald-400' },
-        { name: 'Nemotron-Super-120B', description: 'E-commerce (OpenRouter FREE — Marketplace Fraud)', color: 'text-purple-400' },
-        { name: 'Nemotron-Super-120B', description: 'Supply chain (OpenRouter FREE — Logistics Fraud)', color: 'text-orange-400' }
-      ]
+      technologies: sectorOrder.map((sector, i) => ({
+        name: summary[sector]?.primary?.split('(')[0]?.trim() || sector,
+        description: summary[sector]?.blurb || summary[sector]?.label || sector,
+        color: modelColors[i],
+      }))
     },
     {
       category: 'Infrastructure',
@@ -44,7 +48,7 @@ export default function Architecture() {
       technologies: [
         { name: 'Google Cloud Run', description: 'Serverless containers', color: 'text-blue-400' },
         { name: 'Terraform', description: 'Infrastructure as Code', color: 'text-purple-400' },
-        { name: 'Identity-Aware Proxy', description: 'Built-in auth', color: 'text-sapphire-400' },
+        { name: 'Secret Manager', description: 'API keys stored securely', color: 'text-sapphire-400' },
         { name: 'Cloud Build', description: 'CI/CD pipeline', color: 'text-orange-400' }
       ]
     }
@@ -171,7 +175,7 @@ export default function Architecture() {
 
                 <div className="space-y-4">
                   {stack.technologies.map((tech, index) => (
-                    <div key={tech.key || `${tech.name}-${index}`} className="border-l-2 border-white/10 pl-4">
+                    <div key={`${tech.name}-${index}`} className="border-l-2 border-white/10 pl-4">
                       <div className={`font-semibold ${tech.color}`}>{tech.name}</div>
                       <div className="text-gray-400 text-sm">{tech.description}</div>
                     </div>
@@ -378,7 +382,7 @@ export default function Architecture() {
             <div className="text-gray-500 mt-4"># Output:</div>
             <div className="text-sapphire-400">✓ Backend deployed to Cloud Run</div>
             <div className="text-sapphire-400">✓ Frontend deployed to Cloud Run</div>
-            <div className="text-sapphire-400">✓ IAP authentication configured</div>
+            <div className="text-sapphire-400">✓ API-key auth + rate limiting enabled</div>
             <div className="text-sapphire-400">✓ Cost-optimized infrastructure ready</div>
           </div>
         </motion.div>
