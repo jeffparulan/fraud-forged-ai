@@ -11,7 +11,7 @@
   "dependencies": {
     "framer-motion": "12.38.0",
     "lucide-react": "0.468.0",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -24,9 +24,10 @@
     "typescript": "^5"
   },
   "optionalDependencies": {
-    "@next/swc-darwin-arm64": "^16.2.6"
+    "@next/swc-darwin-arm64": "16.2.11"
   },
   "overrides": {
-    "postcss": "^8.5.14"
+    "postcss": "^8.5.14",
+    "sharp": "0.35.3"
   }
 }

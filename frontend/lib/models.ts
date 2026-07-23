@@ -29,8 +29,8 @@ const FALLBACK_SUMMARY: Record<SectorId, SectorModelSummary> = {
   medical: {
     label: 'Healthcare & Medical Claims',
     pipeline: 'two-stage',
-    primary: 'Two-Stage: MedGemma-27B → Qwen3-32B',
-    blurb: 'MedGemma clinical validation, then Qwen fraud pattern analysis',
+    primary: 'Two-Stage: MedGemma-Local → Nemotron-Super',
+    blurb: 'Local MedGemma clinical validation then Nemotron fraud analysis with RAG + MCP',
     fallbacks: [],
   },
   ecommerce: {

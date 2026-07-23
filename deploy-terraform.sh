@@ -44,6 +44,8 @@ if [ -f .env ]; then
   export TF_VAR_pinecone_host="${PINECONE_HOST:-}"
   export TF_VAR_allowed_origins="${ALLOWED_ORIGINS:-*}"
   export TF_VAR_fraudforge_api_key="${FRAUDFORGE_API_KEY:-}"
+  export TF_VAR_medgemma_local_base_url="${MEDGEMMA_LOCAL_BASE_URL:-}"
+  export TF_VAR_medgemma_local_api_key="${MEDGEMMA_LOCAL_API_KEY:-}"
 else
   echo -e "${YELLOW}No .env found - using terraform.tfvars for tokens${NC}"
   export TF_VAR_project_id="$PROJECT_ID"
@@ -153,14 +155,34 @@ else
 fi
 
 # ----------------------------
-# STEP 1: BUILD & PUSH BACKEND ONLY
+# STEP 1: BUILD & PUSH MCP + BACKEND
 # ----------------------------
+echo -e "${YELLOW}Building and pushing MCP tool server...${NC}"
+docker build --platform linux/amd64 -t "$FULL_PATH/fraud-forge-mcp:latest" ./backend/mcp-server
+docker push "$FULL_PATH/fraud-forge-mcp:latest"
+
+echo -e "${YELLOW}Deploying MCP tool server...${NC}"
+gcloud run deploy fraud-forge-mcp \
+  --project "$PROJECT_ID" \
+  --region "$LOCATION" \
+  --platform managed \
+  --image "$FULL_PATH/fraud-forge-mcp:latest" \
+  --allow-unauthenticated \
+  --memory 256Mi \
+  --quiet >/dev/null
+
+MCP_URL=$(gcloud run services describe fraud-forge-mcp \
+  --project "$PROJECT_ID" \
+  --region "$LOCATION" \
+  --format='value(status.url)')
+echo -e "${GREEN}MCP is live at: $MCP_URL${NC}"
+
 echo -e "${YELLOW}Building and pushing backend...${NC}"
 docker build --platform linux/amd64 -t "$FULL_PATH/fraud-forge-backend:latest" ./backend
 docker push "$FULL_PATH/fraud-forge-backend:latest"
 
 # ----------------------------
-# STEP 2: DEPLOY BACKEND ONLY via Terraform (get real URL)
+# STEP 2: DEPLOY BACKEND (wire MCP_SERVER_URL)
 # ----------------------------
 echo -e "${YELLOW}Forcing backend rollout from latest image...${NC}"
 gcloud run deploy fraud-forge-backend \
@@ -169,6 +191,7 @@ gcloud run deploy fraud-forge-backend \
   --platform managed \
   --image "$FULL_PATH/fraud-forge-backend:latest" \
   --allow-unauthenticated \
+  --update-env-vars "MCP_SERVER_URL=${MCP_URL}" \
   --quiet >/dev/null
 
 BACKEND_URL=$(gcloud run services describe fraud-forge-backend \
@@ -232,10 +255,23 @@ fi
 
 # Full apply only — avoid -target (breaks when IAM resources use count / moved addresses)
 terraform init -upgrade -backend-config="bucket=${STATE_BUCKET}" >/dev/null
+
+# gcloud may have created fraud-forge-mcp before Terraform knew about it.
+# Import into state so apply updates instead of hanging on create.
+MCP_TF_ID="locations/${LOCATION}/namespaces/${PROJECT_ID}/services/fraud-forge-mcp"
+if ! terraform state list 2>/dev/null | grep -q '^google_cloud_run_service.mcp$'; then
+  if gcloud run services describe fraud-forge-mcp \
+      --project "$PROJECT_ID" --region "$LOCATION" >/dev/null 2>&1; then
+    echo -e "${YELLOW}Importing existing fraud-forge-mcp into Terraform state...${NC}"
+    terraform import -input=false google_cloud_run_service.mcp "$MCP_TF_ID" || true
+  fi
+fi
+
 terraform apply -auto-approve
 
 FRONTEND_URL=$(terraform output -raw frontend_url)
 BACKEND_URL=$(terraform output -raw backend_url 2>/dev/null || echo "$BACKEND_URL")
+MCP_URL=$(terraform output -raw mcp_url 2>/dev/null || echo "${MCP_URL:-}")
 
 # Prefer the project-number form for CORS + public sharing (resume / LinkedIn)
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)' 2>/dev/null || echo "203639324676")
@@ -246,10 +282,15 @@ HASH_BACKEND="$BACKEND_URL"
 
 CORS_ORIGINS="${CANONICAL_FRONTEND},${HASH_FRONTEND},http://localhost:3000,http://127.0.0.1:3000"
 
+UPDATE_ENV="^|^ALLOWED_ORIGINS=${CORS_ORIGINS}"
+if [[ -n "${MCP_URL:-}" ]]; then
+  UPDATE_ENV="${UPDATE_ENV}|MCP_SERVER_URL=${MCP_URL}"
+fi
+
 gcloud run services update fraud-forge-backend \
   --project "$PROJECT_ID" \
   --region "$LOCATION" \
-  --update-env-vars "^|^ALLOWED_ORIGINS=${CORS_ORIGINS}" \
+  --update-env-vars "$UPDATE_ENV" \
   --quiet >/dev/null || true
 
 popd >/dev/null
@@ -264,6 +305,7 @@ echo -e "Public (resume/LinkedIn): $CANONICAL_FRONTEND"
 echo -e "Frontend (hash URL)     : $HASH_FRONTEND"
 echo -e "Backend                 : $CANONICAL_BACKEND"
 echo -e "Backend (hash URL)      : $HASH_BACKEND"
+echo -e "MCP tool server         : ${MCP_URL:-"(not set)"}"
 echo ""
 echo "Share this on LinkedIn:"
 echo "     $CANONICAL_FRONTEND"

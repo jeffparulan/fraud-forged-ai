@@ -26,20 +26,74 @@ locals {
 
   # Sensitive values delivered to Cloud Run either via Secret Manager
   # (use_secret_manager = true, recommended) or plain env vars (free tier).
-  backend_secrets = {
-    OPENROUTER_API_KEY    = var.openrouter_key
-    HUGGINGFACE_API_TOKEN = var.huggingface_token
-    PINECONE_API_KEY      = var.pinecone_api_key
-  }
+  backend_secrets = merge(
+    {
+      OPENROUTER_API_KEY    = var.openrouter_key
+      HUGGINGFACE_API_TOKEN = var.huggingface_token
+      PINECONE_API_KEY      = var.pinecone_api_key
+    },
+    # Only inject when set so demos without a Mac Mini tunnel still apply cleanly.
+    var.medgemma_local_base_url != "" ? {
+      MEDGEMMA_LOCAL_BASE_URL = var.medgemma_local_base_url
+    } : {},
+    var.medgemma_local_api_key != "" ? {
+      MEDGEMMA_LOCAL_API_KEY = var.medgemma_local_api_key
+    } : {},
+  )
 
   # Non-sensitive configuration, always plain env vars.
   backend_plain_env = {
-    PINECONE_INDEX_NAME = var.pinecone_index_name
-    PINECONE_HOST       = var.pinecone_host
-    ALLOWED_ORIGINS     = var.allowed_origins
-    FRAUDFORGE_API_KEY  = var.fraudforge_api_key
-    GCP_PROJECT_ID      = var.project_id
+    PINECONE_INDEX_NAME     = var.pinecone_index_name
+    PINECONE_HOST           = var.pinecone_host
+    ALLOWED_ORIGINS         = var.allowed_origins
+    FRAUDFORGE_API_KEY      = var.fraudforge_api_key
+    GCP_PROJECT_ID          = var.project_id
+    MCP_SERVER_URL          = google_cloud_run_service.mcp.status[0].url
+    MEDICAL_TRY_STAGE2_LLM  = "1"
   }
+}
+
+# ==================== MCP TOOL SERVER ====================
+# Deterministic demo tools so enrich_mcp shows mcp: ok (free tier).
+resource "google_cloud_run_service" "mcp" {
+  name     = "fraud-forge-mcp"
+  location = var.region
+
+  metadata {
+    annotations = {
+      "run.googleapis.com/ingress" = "all"
+    }
+  }
+
+  template {
+    spec {
+      containers {
+        image = "${local.image_repo}/fraud-forge-mcp:latest"
+
+        ports {
+          name           = "http1"
+          container_port = 8080
+        }
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "256Mi"
+          }
+        }
+      }
+
+      timeout_seconds       = 60
+      container_concurrency = 80
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+
+  autogenerate_revision_name = true
 }
 
 # ==================== BACKEND ====================
@@ -105,6 +159,7 @@ resource "google_cloud_run_service" "backend" {
       }
 
       timeout_seconds       = 300
+
       container_concurrency = 80
     }
   }
@@ -117,7 +172,8 @@ resource "google_cloud_run_service" "backend" {
   autogenerate_revision_name = true
 
   depends_on = [
-    google_service_account.fraudforge_backend
+    google_service_account.fraudforge_backend,
+    google_cloud_run_service.mcp,
   ]
 }
 
@@ -202,6 +258,14 @@ resource "google_project_iam_member" "frontend_monitoring" {
 # ==================== PUBLIC ACCESS ====================
 # Gated by enable_public_access. Set to false to remove unauthenticated
 # access (then front the services with IAP or call with an identity token).
+resource "google_cloud_run_service_iam_member" "mcp_public" {
+  count    = var.enable_public_access ? 1 : 0
+  service  = google_cloud_run_service.mcp.name
+  location = google_cloud_run_service.mcp.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
 resource "google_cloud_run_service_iam_member" "backend_public" {
   count    = var.enable_public_access ? 1 : 0
   service  = google_cloud_run_service.backend.name
@@ -219,6 +283,10 @@ resource "google_cloud_run_service_iam_member" "frontend_public" {
 }
 
 # ==================== OUTPUTS ====================
+output "mcp_url" {
+  value = google_cloud_run_service.mcp.status[0].url
+}
+
 output "backend_url" {
   value = google_cloud_run_service.backend.status[0].url
 }

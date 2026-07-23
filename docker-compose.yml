@@ -1,6 +1,27 @@
 version: '3.8'
 
 services:
+  # MCP tool server — deterministic demo tools (wallet / provider / seller)
+  mcp:
+    build:
+      context: ./backend/mcp-server
+      dockerfile: Dockerfile
+    container_name: fraudforge-mcp
+    ports:
+      - "8081:8080"
+    environment:
+      - PORT=8080
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - fraudforge
+
   # Backend - FastAPI + LangGraph + Pinecone RAG
   backend:
     build:
@@ -19,8 +40,13 @@ services:
       - GCP_PROJECT_ID=local-dev
       - PYTHONUNBUFFERED=1
       - LOG_STAGE1_VERBOSE=${LOG_STAGE1_VERBOSE:-1}
+      - MCP_SERVER_URL=http://mcp:8080
+      - MEDICAL_TRY_STAGE2_LLM=1
     volumes:
       - ./backend/app:/app/app:ro
+    depends_on:
+      mcp:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health').read()"]
       interval: 30s

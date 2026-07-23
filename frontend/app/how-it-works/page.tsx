@@ -295,8 +295,8 @@ export default function HowItWorks() {
               },
               {
                 title: 'MCP Server',
-                description: 'Model Context Protocol provides external context tools (blockchain validation, transaction history, provider credentials, seller reputation).',
-                why: 'Enriches fraud detection with real-world data'
+                description: 'Model Context Protocol tool stage for external context (wallets, credentials, seller reputation). Demo ships a free deterministic MCP server so the decision trace shows live tool calls.',
+                why: 'Makes external enrichment a first-class, auditable pipeline step'
               }
             ].map((tech, index) => (
               <motion.div

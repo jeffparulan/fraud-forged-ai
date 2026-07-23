@@ -46,6 +46,7 @@ class RouterState(TypedDict, total=False):
     mcp_status: str
     rag_top_score: float
     rag_avg_score: float
+    rag_top_risk_level: str
     embedding_source: str
     clinical_score: Optional[float]
     _analysis_method: str
@@ -215,15 +216,18 @@ class LangGraphRouter:
         state["rag_top_score"] = float(results.get("top_score", 0.0) or 0.0)
         state["rag_avg_score"] = float(results.get("avg_score", 0.0) or 0.0)
         state["embedding_source"] = results.get("embedding_source", "unknown")
+        patterns = results.get("patterns") or []
+        state["rag_top_risk_level"] = (
+            str((patterns[0] or {}).get("risk_level") or "").lower() if patterns else ""
+        )
 
         count = results["count"]
         top = state["rag_top_score"]
         avg = state["rag_avg_score"]
         emb = state["embedding_source"]
         top_risk = ""
-        patterns = results.get("patterns") or []
-        if patterns:
-            top_risk = f"; top match risk={patterns[0].get('risk_level', '?').upper()}"
+        if state["rag_top_risk_level"]:
+            top_risk = f"; top match risk={state['rag_top_risk_level'].upper()}"
 
         status = "ok" if count > 0 else "empty"
         if emb == "hash":
@@ -265,6 +269,7 @@ class LangGraphRouter:
         rule_based_score = result["rule_based_score"]
         rule_based_risk = result["rule_based_risk"]
         provider_label = result["provider_label"]
+        decision_reason = result.get("decision_reason") or "unavailable"
         latency = int((time.monotonic() - t0) * 1000)
 
         if not use_hf:
@@ -283,18 +288,31 @@ class LangGraphRouter:
             except Exception:
                 state["score_breakdown"] = []
                 state["risk_factors"] = []
-            state["model_name"] = "Rule-Based + Pinecone RAG (LLM score rejected)"
+            # "rejected" = LLM returned a score that failed cross-validation.
+            # Everything else (402/429/parse miss) is unavailable — don't mislabel it.
+            if decision_reason == "rejected":
+                state["model_name"] = "Rule-Based + Pinecone RAG (LLM score rejected)"
+                trace_title = "Cross-validation: LLM rejected"
+                trace_detail = (
+                    f"{provider_label} score failed agreement check against "
+                    f"rule-based {rule_based_score:.0f} ({rule_based_risk.upper()}); "
+                    "using deterministic guardrail score"
+                )
+            else:
+                state["model_name"] = "Rule-Based + Pinecone RAG (LLM unavailable)"
+                trace_title = "Cross-validation: LLM unavailable"
+                trace_detail = (
+                    f"{provider_label} returned no usable score "
+                    f"({decision_reason}); using deterministic rule-based score "
+                    f"{rule_based_score:.0f} ({rule_based_risk.upper()})"
+                )
             state["_analysis_method"] = "rule_based"
-            state["_hf_rejected"] = True
+            state["_hf_rejected"] = decision_reason == "rejected"
             self._trace(
                 state,
                 "analyze_fraud",
-                "Cross-validation: LLM rejected",
-                (
-                    f"{provider_label} score was rejected or unavailable; "
-                    f"using deterministic rule-based score {rule_based_score:.0f} "
-                    f"({rule_based_risk.upper()}) as guardrail"
-                ),
+                trace_title,
+                trace_detail,
                 status="fallback",
                 latency_ms=latency,
             )
@@ -361,14 +379,21 @@ class LangGraphRouter:
                 f"OFAC/high-risk geography ({', '.join(hit_countries[:3])}) → escalated to ≥85"
             )
 
-        # Strong RAG match to CRITICAL patterns should not yield a low score
+        # Strong RAG match to HIGH/CRITICAL fraud patterns should not yield a low score.
+        # Do NOT escalate on LOW/MEDIUM pattern matches (e.g. legitimate surgery / PT necessity).
         top_sim = float(state.get("rag_top_score", 0) or 0)
-        if top_sim >= 0.75 and score < 60:
-            score = max(score, 70.0)
-            if risk in ("low", "medium"):
-                risk = "high"
+        top_match_risk = (state.get("rag_top_risk_level") or "").lower()
+        if (
+            top_sim >= 0.75
+            and top_match_risk in ("high", "critical")
+            and score < 60
+        ):
+            floor = 85.0 if top_match_risk == "critical" else 70.0
+            score = max(score, floor)
+            risk = "critical" if top_match_risk == "critical" else "high"
             adjustments.append(
-                f"High RAG similarity ({top_sim:.2f}) to known fraud patterns → floor score ≥70"
+                f"High RAG similarity ({top_sim:.2f}) to {top_match_risk.upper()} "
+                f"fraud patterns → floor score ≥{floor:.0f}"
             )
 
         # MCP blockchain / seller red flags
@@ -520,6 +545,7 @@ class LangGraphRouter:
             "mcp_status": "disabled",
             "rag_top_score": 0.0,
             "rag_avg_score": 0.0,
+            "rag_top_risk_level": "",
             "embedding_source": "unknown",
         }
 

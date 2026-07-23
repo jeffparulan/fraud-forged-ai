@@ -14,6 +14,7 @@ interface Props {
 export default function EcommerceForm({ onResult, onLoading }: Props) {
   const [formData, setFormData] = useState({
     order_id: '',
+    seller_id: '',
     seller_age_days: '',
     price: '',
     market_price: '',
@@ -29,6 +30,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
   })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedSampleIndex, setSelectedSampleIndex] = useState<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,10 +40,12 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
 
     try {
       const reviewList = formData.reviews.split(',').map(r => r.trim()).filter(r => r)
+      const orderId = formData.order_id || `ORD-${Date.now()}`
       const result = await detectFraud({
         sector: 'ecommerce',
         data: {
-          order_id: formData.order_id || `ORD-${Date.now()}`,
+          order_id: orderId,
+          seller_id: formData.seller_id || `SELLER-${orderId}`,
           seller_age_days: parseInt(formData.seller_age_days),
           price: parseFloat(formData.price),
           market_price: parseFloat(formData.market_price),
@@ -70,6 +74,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
       name: 'Suspicious Listing (High Risk)',
       data: {
         order_id: 'ORD-2024-12345',
+        seller_id: 'SELLER-SUSP-NEW-01',
         seller_age_days: '3',
         price: '299',
         market_price: '999',
@@ -88,6 +93,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
       name: 'Legitimate Listing (Low Risk)',
       data: {
         order_id: 'ORD-2024-67890',
+        seller_id: 'SELLER-VERIFIED-730',
         seller_age_days: '730',
         price: '899',
         market_price: '950',
@@ -106,6 +112,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
       name: 'Moderate Risk Listing (Medium Risk)',
       data: {
         order_id: 'ORD-2024-55555',
+        seller_id: 'SELLER-MOD-45',
         seller_age_days: '45',
         price: '650',
         market_price: '800',
@@ -124,6 +131,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
       name: 'Unverified Seller (Medium Risk)',
       data: {
         order_id: 'ORD-2024-33344',
+        seller_id: 'SELLER-NEW-60',
         seller_age_days: '60',
         price: '450',
         market_price: '550',
@@ -142,6 +150,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
       name: 'Potential Return Fraud (High Risk)',
       data: {
         order_id: 'ORD-2024-99999',
+        seller_id: 'SELLER-RISK-15',
         seller_age_days: '15',
         price: '1200',
         market_price: '1800',
@@ -160,6 +169,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
       name: 'Established Seller (Low Risk)',
       data: {
         order_id: 'ORD-2024-11111',
+        seller_id: 'SELLER-VERIFIED-1095',
         seller_age_days: '1095',
         price: '1250',
         market_price: '1300',
@@ -179,6 +189,7 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
   const loadSample = (index: number = 0) => {
     const sample = SAMPLE_SCENARIOS[index] || SAMPLE_SCENARIOS[0]
     setFormData(sample.data)
+    setSelectedSampleIndex(index)
   }
 
   return (
@@ -189,30 +200,60 @@ export default function EcommerceForm({ onResult, onLoading }: Props) {
           Load Sample Scenario:
         </label>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-          {SAMPLE_SCENARIOS.map((scenario, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => loadSample(index)}
-              className="px-3 py-2 text-xs glass-effect text-white rounded hover:bg-white/10 transition-colors text-left"
-            >
-              {scenario.name}
-            </button>
-          ))}
+          {SAMPLE_SCENARIOS.map((scenario, index) => {
+            const selected = selectedSampleIndex === index
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => loadSample(index)}
+                aria-pressed={selected}
+                className={`px-3 py-2 text-xs rounded transition-colors text-left border ${
+                  selected
+                    ? 'bg-sapphire-500/25 border-sapphire-400 text-white ring-1 ring-sapphire-400/60'
+                    : 'glass-effect border-transparent text-white hover:bg-white/10'
+                }`}
+              >
+                {scenario.name}
+              </button>
+            )
+          })}
         </div>
+        {selectedSampleIndex !== null && (
+          <p className="mt-3 text-sm text-sapphire-300">
+            Selected scenario:{' '}
+            <span className="font-semibold text-white">
+              {SAMPLE_SCENARIOS[selectedSampleIndex].name}
+            </span>
+          </p>
+        )}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Order ID
-        </label>
-        <input
-          type="text"
-          value={formData.order_id}
-          onChange={(e) => setFormData({ ...formData, order_id: e.target.value })}
-          className="w-full px-4 py-3 bg-nightfall-900 border border-white/10 rounded-lg text-white focus:border-sapphire-500 focus:outline-none"
-          placeholder="ORD-2024-12345"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Order ID
+          </label>
+          <input
+            type="text"
+            value={formData.order_id}
+            onChange={(e) => setFormData({ ...formData, order_id: e.target.value })}
+            className="w-full px-4 py-3 bg-nightfall-900 border border-white/10 rounded-lg text-white focus:border-sapphire-500 focus:outline-none"
+            placeholder="ORD-2024-12345"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Seller ID
+          </label>
+          <input
+            type="text"
+            value={formData.seller_id}
+            onChange={(e) => setFormData({ ...formData, seller_id: e.target.value })}
+            className="w-full px-4 py-3 bg-nightfall-900 border border-white/10 rounded-lg text-white focus:border-sapphire-500 focus:outline-none"
+            placeholder="SELLER-VERIFIED-730"
+          />
+        </div>
       </div>
 
       <div>

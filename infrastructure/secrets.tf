@@ -33,11 +33,19 @@ resource "google_project_iam_member" "backend_monitoring" {
 # Cloud Run console and Terraform state either way - state is sensitive!).
 
 locals {
-  managed_secrets = var.use_secret_manager ? {
-    OPENROUTER_API_KEY    = var.openrouter_key
-    HUGGINGFACE_API_TOKEN = var.huggingface_token
-    PINECONE_API_KEY      = var.pinecone_api_key
-  } : {}
+  managed_secrets = var.use_secret_manager ? merge(
+    {
+      OPENROUTER_API_KEY    = var.openrouter_key
+      HUGGINGFACE_API_TOKEN = var.huggingface_token
+      PINECONE_API_KEY      = var.pinecone_api_key
+    },
+    var.medgemma_local_base_url != "" ? {
+      MEDGEMMA_LOCAL_BASE_URL = var.medgemma_local_base_url
+    } : {},
+    var.medgemma_local_api_key != "" ? {
+      MEDGEMMA_LOCAL_API_KEY = var.medgemma_local_api_key
+    } : {},
+  ) : {}
 }
 
 resource "google_secret_manager_secret" "app" {

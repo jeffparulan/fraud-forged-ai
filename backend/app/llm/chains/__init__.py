@@ -1,6 +1,6 @@
 """Sector-specific fraud scoring chains."""
 from .banking_chain import score_banking_fraud, score_banking_fraud_detailed
-from .medical_chain import score_medical_fraud
+from .medical_chain import score_medical_fraud, score_medical_fraud_detailed
 from .ecommerce_chain import score_ecommerce_fraud
 from .supply_chain_chain import score_supply_chain_fraud
 from typing import Dict, Any, List, Tuple
@@ -17,9 +17,11 @@ SCORING_CHAINS = {
 
 
 def score_with_breakdown(sector: str, data: Dict[str, Any]) -> Tuple[float, List[Dict[str, Any]]]:
-    """Return (score, contribution breakdown). Banking has full detail; others return empty breakdown."""
+    """Return (score, contribution breakdown). Banking/medical have detail; others empty breakdown."""
     if sector == "banking":
         return score_banking_fraud_detailed(data)
+    if sector == "medical":
+        return score_medical_fraud_detailed(data)
     score_fn = SCORING_CHAINS.get(sector)
     score = score_fn(data) if score_fn else 50.0
     return score, []
