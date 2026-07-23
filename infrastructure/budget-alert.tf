@@ -1,5 +1,16 @@
 # ==================== BUDGET ALERT SYSTEM ====================
 
+locals {
+  budget_shutdown_zip = "${path.module}/budget-shutdown-function.zip"
+  # Guard filemd5 with fileexists so `terraform validate` works in CI without the zip artifact.
+  budget_shutdown_zip_hash = (
+    fileexists(local.budget_shutdown_zip)
+    ? filemd5(local.budget_shutdown_zip)
+    : "missing"
+  )
+  enable_budget_function = var.billing_account_id != "" && fileexists(local.budget_shutdown_zip)
+}
+
 # Grant permission to delete Cloud Run services (only created if billing_account_id is provided)
 resource "google_project_iam_member" "shutdown_run_developer" {
   count   = var.billing_account_id != "" ? 1 : 0
@@ -65,9 +76,9 @@ resource "google_project_iam_member" "shutdown_run_admin" {
   member  = "serviceAccount:${google_service_account.budget_shutdown[0].email}"
 }
 
-# Cloud Function to handle shutdown (only created if billing_account_id is provided)
+# Cloud Function to handle shutdown (requires billing account + packaged zip)
 resource "google_cloudfunctions2_function" "budget_shutdown" {
-  count    = var.billing_account_id != "" ? 1 : 0
+  count    = local.enable_budget_function ? 1 : 0
   name     = "budget-shutdown-function"
   location = var.region
   project  = var.project_id
@@ -113,12 +124,12 @@ resource "google_storage_bucket" "function_source" {
   force_destroy = true
 }
 
-# Upload function code (only created if billing_account_id is provided)
+# Upload function code (requires billing account + packaged zip)
 resource "google_storage_bucket_object" "function_code" {
-  count  = var.billing_account_id != "" ? 1 : 0
-  name   = "budget-shutdown-${filemd5("${path.module}/budget-shutdown-function.zip")}.zip"
+  count  = local.enable_budget_function ? 1 : 0
+  name   = "budget-shutdown-${local.budget_shutdown_zip_hash}.zip"
   bucket = google_storage_bucket.function_source[0].name
-  source = "${path.module}/budget-shutdown-function.zip"
+  source = local.budget_shutdown_zip
 }
 
 # Get project data
