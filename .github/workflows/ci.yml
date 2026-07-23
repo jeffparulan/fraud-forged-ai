@@ -69,9 +69,17 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.0"
+          terraform_wrapper: false
 
       - name: Init (no backend) and validate
+        env:
+          # Dummy values so validate can resolve required variables without secrets.
+          TF_VAR_project_id: local-dev
+          TF_VAR_huggingface_token: ci-placeholder
+          TF_VAR_openrouter_key: ci-placeholder
+          TF_VAR_pinecone_api_key: ci-placeholder
+          TF_VAR_pinecone_host: https://example.pinecone.io
         run: |
-          terraform init -backend=false
+          terraform init -backend=false -input=false
           terraform validate
           terraform fmt -check -recursive
