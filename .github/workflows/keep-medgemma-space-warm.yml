@@ -1,0 +1,28 @@
+# Gently keep the owned MedGemma Gradio Space from hitting the free-tier
+# 48h inactivity sleep. Do NOT ping every few minutes — HF has flagged that
+# pattern as abusive.
+name: Keep MedGemma Space Warm
+
+on:
+  schedule:
+    # Every 24 hours (UTC). Free Spaces sleep after ~48h idle.
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-space:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping HF Space homepage
+        env:
+          SPACE_URL: https://ironjeffe-google-medgemma-4b-it.hf.space/
+        run: |
+          set -euo pipefail
+          code=$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 90 "$SPACE_URL" || echo "000")
+          echo "Space ping HTTP $code ($SPACE_URL)"
+          # 200/302/401/405 all prove the runtime received traffic and reset idle.
+          case "$code" in
+            200|301|302|401|403|405) exit 0 ;;
+            *) echo "Unexpected status — Space may be building/asleep"; exit 0 ;;
+          esac

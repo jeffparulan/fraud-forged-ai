@@ -46,6 +46,46 @@ class TestLangGraphRouter:
         assert result["similar_patterns"] == 3
         assert result["rag_top_score"] == 0.9
         assert result["embedding_source"] == "hf"
+        assert result["rag_top_risk_level"] == "high"
+
+    def test_guardrail_ignores_high_sim_low_risk_rag(self):
+        """Matching a LOW pattern at high similarity must not force HIGH."""
+        mock_rag = Mock()
+        router = LangGraphRouter(mock_rag)
+        state = {
+            "sector": "medical",
+            "input_data": {},
+            "fraud_score": 30.0,
+            "risk_level": "medium",
+            "rag_top_score": 0.88,
+            "rag_top_risk_level": "low",
+            "risk_factors": [],
+            "decision_trace": [],
+            "mcp_context": {},
+        }
+        out = router._apply_guardrails(state)
+        assert out["fraud_score"] == 30.0
+        assert out["risk_level"] == "medium"
+        assert not out.get("_guardrail_adjusted")
+
+    def test_guardrail_escalates_high_sim_critical_rag(self):
+        mock_rag = Mock()
+        router = LangGraphRouter(mock_rag)
+        state = {
+            "sector": "medical",
+            "input_data": {},
+            "fraud_score": 35.0,
+            "risk_level": "medium",
+            "rag_top_score": 0.9,
+            "rag_top_risk_level": "critical",
+            "risk_factors": [],
+            "decision_trace": [],
+            "mcp_context": {},
+        }
+        out = router._apply_guardrails(state)
+        assert out["fraud_score"] >= 85.0
+        assert out["risk_level"] == "critical"
+        assert out.get("_guardrail_adjusted")
 
     def test_ecommerce_maps_to_ultra(self):
         from app.llm.config import get_sector_route_display

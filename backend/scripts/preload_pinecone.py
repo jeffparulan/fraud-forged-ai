@@ -137,9 +137,9 @@ def get_comprehensive_patterns():
                 "indicators": ["duplicate", "same date", "double billing"]
             },
             {
-                "description": "Unbundling of procedures to inflate claim value",
+                "description": "Unbundling: total knee arthroplasty CPT 27447 billed with arthroscopy 29881/29882 and revision 27486 in the same operative session when components are typically bundled",
                 "risk_level": "medium",
-                "indicators": ["unbundling", "procedure splitting", "inflation"]
+                "indicators": ["unbundling", "27447", "29881", "29882", "27486", "same operative session", "typically bundled", "procedure splitting"]
             },
             {
                 "description": "Claim for service not typically performed by provider specialty",
@@ -147,9 +147,14 @@ def get_comprehensive_patterns():
                 "indicators": ["specialty mismatch", "unusual procedure"]
             },
             {
-                "description": "Upcoding from basic to complex procedure without justification",
+                "description": "Upcoding: same-day cardiology battery ECG stress echo chest x-ray labs without intensity justified by clinical note; flagged provider",
                 "risk_level": "high",
-                "indicators": ["upcoding", "no justification", "complex procedure"]
+                "indicators": ["upcoding", "same-day testing", "93000", "93306", "93350", "flagged provider", "excessive procedures", "single visit"]
+            },
+            {
+                "description": "Phantom billing: epidural injections and E/M billed when clinic schedule and EHR show no visits, no consent, no vitals on claimed dates",
+                "risk_level": "critical",
+                "indicators": ["phantom billing", "no visits", "no consent", "missing documentation", "64483", "flagged provider"]
             },
             {
                 "description": "Claims for services on dates when patient was hospitalized elsewhere",
@@ -157,19 +162,24 @@ def get_comprehensive_patterns():
                 "indicators": ["date conflict", "hospitalization", "impossible service"]
             },
             {
-                "description": "Provider billing for services at frequency exceeding medical necessity",
-                "risk_level": "high",
-                "indicators": ["excessive frequency", "medical necessity", "overutilization"]
+                "description": "Physical therapy overutilization: prolonged 97110/97112/97140/97530 with no significant improvement and minimal supporting documentation",
+                "risk_level": "medium",
+                "indicators": ["medical necessity", "overutilization", "97110", "no significant improvement", "minimal supporting", "physical therapy"]
             },
             {
-                "description": "Routine claim matching typical care patterns",
+                "description": "Routine established-patient office visit CPT 99213 with wellness exam Z00.00, clean provider, appropriate low amount",
                 "risk_level": "low",
-                "indicators": ["routine care", "appropriate codes", "clean provider"]
+                "indicators": ["routine care", "99213", "Z00.00", "appropriate codes", "clean provider", "legitimate"]
+            },
+            {
+                "description": "Legitimate complex neurosurgery: cervical corpectomy 63081 with arthrodesis 22614 and autograft, myelopathy and stenosis documented with MRI correlation and medical necessity",
+                "risk_level": "low",
+                "indicators": ["63081", "22614", "myelopathy", "spinal stenosis", "well documented", "medical necessity", "legitimate", "neurosurgery"]
             },
             {
                 "description": "Standard preventive care claim with proper documentation",
                 "risk_level": "low",
-                "indicators": ["preventive", "documented", "appropriate"]
+                "indicators": ["preventive", "documented", "appropriate", "legitimate"]
             }
         ],
         "ecommerce": [

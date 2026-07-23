@@ -132,7 +132,7 @@ def build_stage2_fraud_prompt(
     clinical_reasoning: str,
     clinical_flags: List[str]
 ) -> str:
-    """Build Stage 2 prompt for fraud pattern analysis (Qwen)."""
+    """Build Stage 2 prompt for fraud pattern analysis (Nemotron-Super)."""
     diag = data.get('diagnosis_codes', [])
     if not diag:
         diag = [data.get('diagnosis_code', 'Unknown')]
@@ -175,8 +175,15 @@ Your job is to analyze this claim for FRAUD PATTERNS, BILLING ANOMALIES, and COS
 """
     if rag_context:
         prompt += f"""
-**Similar Fraud Patterns (RAG Context):**
+**Similar Fraud Patterns (RAG Context — Pinecone):**
 {rag_context}
+
+"""
+    provider_mcp = data.get("provider_data")
+    if provider_mcp:
+        prompt += f"""
+**External Provider Context (MCP tools):**
+{provider_mcp}
 
 """
     prompt += """

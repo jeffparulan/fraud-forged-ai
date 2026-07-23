@@ -48,7 +48,7 @@ export default function Features() {
       description: 'Four cost-optimized fraud-specialized LLMs',
       details: [
         'Banking & crypto (HF Qwen primary)',
-        'Medical two-stage clinical → fraud',
+        'Medical: Local MedGemma → Nemotron-Super (Stage 1 via Mac Mini)',
         'E-commerce (OpenRouter Nemotron)',
         'Supply chain (OpenRouter Nemotron)',
       ],
@@ -132,7 +132,7 @@ export default function Features() {
     },
     {
       title: 'Multi-Model Inference',
-      description: 'Sector-specialized models via Hugging Face Inference and OpenRouter FREE (Qwen, MedGemma, NVIDIA Nemotron)',
+      description: 'Sector-specialized models: HF Qwen (banking), local MedGemma → Nemotron-Super (medical), OpenRouter Nemotron (e-com / supply)',
       icon: Cpu
     },
     {

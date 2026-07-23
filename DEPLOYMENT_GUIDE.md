@@ -126,10 +126,11 @@ cd ..
 ```
 
 **What happens during deployment:**
-1. **Docker Build** (10-15 min): Builds backend and frontend images
+1. **Docker Build** (10-15 min): Builds **three** images — `fraud-forge-mcp`, `fraud-forge-backend`, `fraud-forge-frontend`
 2. **Image Push** (5-10 min): Pushes images to Google Artifact Registry
-3. **Terraform Apply** (15-30 min): Creates Cloud Run services, IAM, networking
-4. **Service Startup** (5-10 min): Cloud Run services start and become available
+3. **MCP + Backend rollouts**: Deploys MCP first, then sets backend `MCP_SERVER_URL` to the MCP URL
+4. **Terraform Apply** (15-30 min): Syncs Cloud Run services, IAM, networking for all three services
+5. **Service Startup** (5-10 min): Cloud Run services start and become available
 
 **Total time: 30-60 minutes** (first deployment)
 
@@ -139,13 +140,19 @@ cd ..
 # Get deployment URLs
 cd infrastructure
 terraform output
+# Expect: mcp_url, backend_url, frontend_url
+
+# Test MCP tool server
+curl "$(terraform output -raw mcp_url)/health"
 
 # Test backend health
-curl https://your-backend-url.run.app/health
+curl "$(terraform output -raw backend_url)/health"
 
 # Test frontend
-open https://your-frontend-url.run.app
+open "$(terraform output -raw frontend_url)"
 ```
+
+On a successful detect run, the decision-trace badge should show `mcp: ok` (not `mcp: disabled`) when the payload includes wallets / provider_id / seller_id.
 
 ## ⏱️ Realistic Deployment Times
 
@@ -170,8 +177,11 @@ open https://your-frontend-url.run.app
 # Clear Docker cache
 docker system prune -a
 
-# Rebuild with no cache
+# Rebuild images with no cache (MCP, then backend, then frontend)
+docker build --no-cache -t fraud-forge-mcp ./backend/mcp-server
 docker build --no-cache -t fraud-forge-backend ./backend
+docker build --no-cache --build-arg NEXT_PUBLIC_API_URL=https://your-backend.run.app \
+  -t fraud-forge-frontend ./frontend
 ```
 
 #### 2. Terraform Authentication Error
@@ -185,8 +195,14 @@ gcloud config set project YOUR_PROJECT_ID
 
 #### 3. Cloud Run Deployment Fails
 ```bash
-# Check service logs
+# Check each service
+gcloud run services describe fraud-forge-mcp --region=us-central1
 gcloud run services describe fraud-forge-backend --region=us-central1
+gcloud run services describe fraud-forge-frontend --region=us-central1
+
+# Confirm backend can reach MCP
+gcloud run services describe fraud-forge-backend --region=us-central1 \
+  --format='yaml(spec.template.spec.containers[0].env)' | grep -A1 MCP_SERVER_URL
 
 # View logs
 gcloud logging read "resource.type=cloud_run_revision" --limit 50

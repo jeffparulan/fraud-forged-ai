@@ -147,6 +147,7 @@ export default function BankingForm({ onResult, onLoading }: Props) {
   })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedSampleIndex, setSelectedSampleIndex] = useState<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -221,6 +222,7 @@ export default function BankingForm({ onResult, onLoading }: Props) {
   const loadSample = (index: number) => {
     const sample = SAMPLE_SCENARIOS[index]
     setFormData(sample.data)
+    setSelectedSampleIndex(index)
   }
 
   return (
@@ -231,17 +233,33 @@ export default function BankingForm({ onResult, onLoading }: Props) {
           Load Sample Scenario:
         </label>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-          {SAMPLE_SCENARIOS.map((scenario, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => loadSample(index)}
-              className="px-3 py-2 text-xs glass-effect text-white rounded hover:bg-white/10 transition-colors text-left"
-            >
-              {scenario.name}
-            </button>
-          ))}
+          {SAMPLE_SCENARIOS.map((scenario, index) => {
+            const selected = selectedSampleIndex === index
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => loadSample(index)}
+                aria-pressed={selected}
+                className={`px-3 py-2 text-xs rounded transition-colors text-left border ${
+                  selected
+                    ? 'bg-sapphire-500/25 border-sapphire-400 text-white ring-1 ring-sapphire-400/60'
+                    : 'glass-effect border-transparent text-white hover:bg-white/10'
+                }`}
+              >
+                {scenario.name}
+              </button>
+            )
+          })}
         </div>
+        {selectedSampleIndex !== null && (
+          <p className="mt-3 text-sm text-sapphire-300">
+            Selected scenario:{' '}
+            <span className="font-semibold text-white">
+              {SAMPLE_SCENARIOS[selectedSampleIndex].name}
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

@@ -35,6 +35,7 @@ def validate_llm_result(
     - rule_based_score: float
     - rule_based_risk: str
     - provider_label: str
+    - decision_reason: "accepted" | "unavailable" | "rejected" | "no_client" | "error"
     """
     rule_based_score = calculate_fraud_score(sector, data, rag_context)
     rule_based_risk = get_risk_level(rule_based_score)
@@ -43,6 +44,7 @@ def validate_llm_result(
     use_hf = False
     hf_result: Optional[Dict[str, Any]] = None
     provider_label = "LLM"
+    decision_reason = "unavailable"
 
     if not hf_client:
         return {
@@ -51,6 +53,7 @@ def validate_llm_result(
             "rule_based_score": rule_based_score,
             "rule_based_risk": rule_based_risk,
             "provider_label": "LLM",
+            "decision_reason": "no_client",
         }
 
     try:
@@ -78,6 +81,7 @@ def validate_llm_result(
                 "rule_based_score": rule_based_score,
                 "rule_based_risk": rule_based_risk,
                 "provider_label": provider_label,
+                "decision_reason": "unavailable",
             }
 
         hf_score = hf_result["fraud_score"]
@@ -118,6 +122,7 @@ def validate_llm_result(
                     "likely Stage 2 parse failure (default 50), using rule-based"
                 )
                 use_hf = False
+                decision_reason = "rejected"
             elif rule_based_score >= 70 and hf_score < 35:
                 logger.warning(
                     f"[Validation] ❌ REJECTED {provider_label} (Medical): Rule-based HIGH/CRITICAL "
@@ -125,6 +130,7 @@ def validate_llm_result(
                     "likely parse failure, using rule-based"
                 )
                 use_hf = False
+                decision_reason = "rejected"
             elif rule_based_score <= 15 and hf_score >= 85:
                 logger.warning(
                     f"[Validation] ❌ REJECTED {provider_label} (Medical): Rule-based VERY LOW "
@@ -132,8 +138,10 @@ def validate_llm_result(
                     "possible hallucination, using rule-based"
                 )
                 use_hf = False
+                decision_reason = "rejected"
             else:
                 use_hf = True
+                decision_reason = "accepted"
                 logger.info(
                     f"[Validation] ✅ ACCEPTED {provider_label} (Medical): two-stage score "
                     f"{hf_score:.2f} ({hf_risk.upper()}), rule-based baseline {rule_based_score:.2f} "
@@ -161,6 +169,7 @@ def validate_llm_result(
                     "likely parse failure or miscalibration, using rule-based"
                 )
                 use_hf = False
+                decision_reason = "rejected"
             elif rule_based_score >= 70 and hf_score < 40:
                 logger.warning(
                     f"[Validation] ❌ REJECTED {provider_label}: Rule-based HIGH/CRITICAL "
@@ -168,6 +177,7 @@ def validate_llm_result(
                     "likely parse failure, using rule-based"
                 )
                 use_hf = False
+                decision_reason = "rejected"
             elif rule_based_score <= 15 and hf_score >= 85:
                 logger.warning(
                     f"[Validation] ❌ REJECTED {provider_label}: Rule-based VERY LOW "
@@ -175,8 +185,10 @@ def validate_llm_result(
                     "possible hallucination"
                 )
                 use_hf = False
+                decision_reason = "rejected"
             else:
                 use_hf = True
+                decision_reason = "accepted"
                 logger.info(
                     f"[Validation] ✅ ACCEPTED {provider_label}: LLM score {hf_score:.2f} "
                     f"({hf_risk.upper()}), rule-based baseline {rule_based_score:.2f} "
@@ -186,6 +198,7 @@ def validate_llm_result(
     except Exception as e:
         logger.error(f"[LLM] {provider_label} inference failed: {e}, using rule-based")
         use_hf = False
+        decision_reason = "error"
 
     return {
         "use_hf": use_hf,
@@ -193,4 +206,5 @@ def validate_llm_result(
         "rule_based_score": rule_based_score,
         "rule_based_risk": rule_based_risk,
         "provider_label": provider_label,
+        "decision_reason": decision_reason,
     }

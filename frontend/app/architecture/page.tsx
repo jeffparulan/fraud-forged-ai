@@ -46,10 +46,10 @@ export default function Architecture() {
       category: 'Infrastructure',
       icon: Cloud,
       technologies: [
-        { name: 'Google Cloud Run', description: 'Serverless containers', color: 'text-blue-400' },
+        { name: 'Google Cloud Run', description: '3 services: frontend, backend, MCP', color: 'text-blue-400' },
         { name: 'Terraform', description: 'Infrastructure as Code', color: 'text-purple-400' },
         { name: 'Secret Manager', description: 'API keys stored securely', color: 'text-sapphire-400' },
-        { name: 'Cloud Build', description: 'CI/CD pipeline', color: 'text-orange-400' }
+        { name: 'Artifact Registry', description: 'mcp / backend / frontend images', color: 'text-orange-400' }
       ]
     }
   ]
@@ -78,22 +78,29 @@ export default function Architecture() {
     },
     {
       step: 4,
+      title: 'MCP Enrichment',
+      description: 'Backend calls fraud-forge-mcp tools for wallets, credentials, and seller signals',
+      icon: Box,
+      color: 'text-cyan-400'
+    },
+    {
+      step: 5,
       title: 'RAG Enhancement',
-      description: 'Pinecone retrieves similar fraud patterns from vector database',
+      description: 'Pinecone rag namespace retrieves similar fraud patterns from vector database',
       icon: Database,
       color: 'text-orange-400'
     },
     {
-      step: 5,
+      step: 6,
       title: 'AI Analysis',
-      description: 'Sector-specific LLM processes input with RAG context',
+      description: 'Sector-specific LLM processes input with MCP + RAG context',
       icon: Zap,
       color: 'text-yellow-400'
     },
     {
-      step: 6,
+      step: 7,
       title: 'Score & Explain',
-      description: 'Returns 0-100% fraud score with human-readable explanation',
+      description: 'Guardrails + 0-100% fraud score with decision trace',
       icon: Shield,
       color: 'text-pink-400'
     }
@@ -374,15 +381,16 @@ export default function Architecture() {
           </p>
           <div className="bg-nightfall-950 rounded-lg p-6 font-mono text-sm overflow-x-auto">
             <div className="text-gray-400"># Deploy entire platform</div>
-            <div className="text-sapphire-400">$ ./deploy.sh</div>
+            <div className="text-sapphire-400">$ ./deploy-terraform.sh</div>
             <div className="text-gray-500 mt-4"># Behind the scenes:</div>
-            <div className="text-sapphire-400">terraform apply</div>
-            <div className="text-sapphire-400">gcloud run deploy fraud-forge</div>
-            <div className="text-sapphire-400">gcloud iap enable</div>
+            <div className="text-sapphire-400">docker build/push fraud-forge-mcp</div>
+            <div className="text-sapphire-400">docker build/push fraud-forge-backend</div>
+            <div className="text-sapphire-400">docker build/push fraud-forge-frontend</div>
+            <div className="text-sapphire-400">terraform apply  # 3 Cloud Run services</div>
             <div className="text-gray-500 mt-4"># Output:</div>
-            <div className="text-sapphire-400">✓ Backend deployed to Cloud Run</div>
+            <div className="text-sapphire-400">✓ MCP tool server deployed to Cloud Run</div>
+            <div className="text-sapphire-400">✓ Backend deployed (MCP_SERVER_URL wired)</div>
             <div className="text-sapphire-400">✓ Frontend deployed to Cloud Run</div>
-            <div className="text-sapphire-400">✓ API-key auth + rate limiting enabled</div>
             <div className="text-sapphire-400">✓ Cost-optimized infrastructure ready</div>
           </div>
         </motion.div>

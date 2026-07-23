@@ -132,7 +132,29 @@ export default function ResultDisplay({ result, onReset }: Props) {
             <Cpu className="w-4 h-4 text-purple-400" />
             <div className="text-xs text-gray-400">Model Used</div>
           </div>
-          <div className="text-sm font-semibold text-white">{result.model_used}</div>
+          <div className="text-sm font-semibold text-white leading-snug">
+            {/MedGemma/i.test(result.model_used || '') ? (
+              <span className="inline-flex items-center flex-wrap gap-x-1 gap-y-1">
+                <img src="/gcp-logo.png" alt="Google Cloud Platform" className="inline-block w-3.5 h-3.5 shrink-0" />
+                <span>{result.model_used}</span>
+                {/Nemotron/i.test(result.model_used || '') && (
+                  <img src="/nvidia-logo.svg" alt="NVIDIA" className="inline-block w-3.5 h-3.5 shrink-0" />
+                )}
+              </span>
+            ) : /Nemotron/i.test(result.model_used || '') ? (
+              <span className="inline-flex items-center flex-wrap gap-x-1">
+                <img src="/nvidia-logo.svg" alt="NVIDIA" className="inline-block w-3.5 h-3.5 shrink-0" />
+                <span>{result.model_used}</span>
+              </span>
+            ) : /Qwen/i.test(result.model_used || '') ? (
+              <span className="inline-flex items-center flex-wrap gap-x-1">
+                <img src="/qwen-logo.svg" alt="Qwen" className="inline-block w-3.5 h-3.5 shrink-0" />
+                <span>{result.model_used}</span>
+              </span>
+            ) : (
+              result.model_used
+            )}
+          </div>
         </div>
 
         <div className="bg-nightfall-900/30 rounded-lg p-3">
@@ -152,7 +174,7 @@ export default function ResultDisplay({ result, onReset }: Props) {
         </div>
       )}
 
-      {/* Score contribution breakdown — shows why flipping KYC/TOR/etc moved (or didn't) */}
+      {/* Score contribution breakdown — rule signals that moved the score */}
       {result.score_breakdown && result.score_breakdown.length > 0 && (
         <div className="bg-nightfall-900/50 rounded-lg p-4">
           <div className="text-sm font-semibold text-sapphire-400 mb-3">Score Contributions</div>
@@ -160,16 +182,17 @@ export default function ResultDisplay({ result, onReset }: Props) {
             {result.score_breakdown.map((item, i) => {
               const positive = item.points > 0
               const neutral = item.points === 0
+              const label = item.label || (item as { reason?: string }).reason || item.signal || 'Signal'
               return (
-                <li key={i} className="flex items-center justify-between text-sm gap-3">
-                  <span className="text-gray-300">{item.label}</span>
+                <li key={i} className="flex items-start justify-between text-sm gap-3">
+                  <span className="text-gray-300 flex-1 min-w-0">{label}</span>
                   <span
                     className={
                       neutral
-                        ? 'text-yellow-400 font-mono text-xs'
+                        ? 'text-yellow-400 font-mono text-xs shrink-0'
                         : positive
-                          ? 'text-red-400 font-mono'
-                          : 'text-green-400 font-mono'
+                          ? 'text-red-400 font-mono shrink-0'
+                          : 'text-green-400 font-mono shrink-0'
                     }
                   >
                     {neutral ? '—' : `${item.points > 0 ? '+' : ''}${item.points}`}
@@ -179,8 +202,8 @@ export default function ResultDisplay({ result, onReset }: Props) {
             })}
           </ul>
           <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
-            Flipping a field (e.g. KYC) always re-weights the score. If the gauge stays at 100,
-            other critical signals still saturate the ceiling — check the contribution list above.
+            Each row is a deterministic billing/risk signal. Positive points raise fraud risk;
+            negative points lower it. Final verdict also incorporates clinical Stage 1 and RAG.
           </p>
         </div>
       )}

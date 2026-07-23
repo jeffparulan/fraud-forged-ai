@@ -21,8 +21,9 @@ FastAPI Backend
 │   └── LLM vs rule-based validation
 └── LLM Client (app/llm/orchestrator.py)
     ├── Config: app/llm/models.yaml (single source of truth)
-    ├── Hugging Face (Qwen3-32B — Banking + Medical Stage 2; MedGemma-27B — Medical Stage 1)
-    └── OpenRouter (Nemotron-3-Ultra — E-com + Supply; Nemotron-Super / Nano — FREE fallbacks)
+    ├── Local MedGemma (Mac Mini / ngrok — Medical Stage 1 clinical audit)
+    ├── Hugging Face (Qwen3-32B — Banking primary; optional medical fallback)
+    └── OpenRouter (Nemotron-Super — Medical Stage 2; Nemotron-Ultra — E-com + Supply; Nano fallbacks)
 ```
 
 ## Directory Structure
@@ -54,19 +55,25 @@ Select sector-specific LLM (MedGemma / Qwen / Meta / NVIDIA only).
 
 ### 2. Enrich MCP
 Call Model Context Protocol tools for sector-relevant external signals
-(blockchain wallets, provider credentials, seller reputation). Soft-fails if
-`MCP_SERVER_URL` is unset or unreachable — never blocks the pipeline.
+(blockchain wallets, provider credentials, seller reputation). Local compose and
+Cloud Run deploy a free deterministic MCP tool server (`fraud-forge-mcp`). Soft-fails if
+`MCP_SERVER_URL` is unset or unreachable — never blocks the pipeline. Decision
+trace reports `mcp_status`: `ok` | `no_signals` | `disabled` | `unreachable` | `error`.
 
 ### 3. Retrieve Context
 Query Pinecone for similar fraud patterns. Surfaces top/avg cosine similarity
 and embedding provenance (`hf` vs hash fallback) in the decision trace.
 
 ### 4. Analyze Fraud
+Medical two-stage (after MCP + Pinecone RAG already ran):
+1. Stage 1 local MedGemma clinical audit (Mac Mini via ngrok; optional if unavailable)
+2. Stage 2 Nemotron-Super fraud analysis with RAG + MCP (OpenRouter FREE)
+3. If Stage 2 fails → Ultra / Nano / optional HF Qwen fallbacks, or rule blend when Stage 1 succeeded
+
 Run LLM inference, validate against rule-based score:
-- Accept LLM if score difference < 20 points
-- Reject if extreme discrepancy (rule < 10 AND llm > 85)
-- Special handling for medical (trust two-stage pipeline)
-- Fallback to rule-based if validation fails
+- Medical: accept unless extreme cross-level reversal
+- Others: reject on large risk-band reversals
+- Fallback to rule-based if no usable LLM score
 
 ### 5. Apply Guardrails
 Post-score escalation floors when OFAC geography, high RAG similarity to known
@@ -83,22 +90,22 @@ Every request returns a **decision_trace** (per-node timeline with latency) and
 | Sector | Model | Provider | Cost |
 |--------|-------|----------|------|
 | Banking | Qwen3-32B | HF Inference | Pay-per-token |
-| Medical | MedGemma-27B → Qwen3-32B | HF Inference (Featherless AI) | Pay-per-token |
+| Medical | MedGemma-Local → Nemotron-Super | Local (ngrok) → OpenRouter FREE | Local + free |
 | E-commerce | Nemotron-3-Ultra-550B | OpenRouter FREE | Free |
 | Supply Chain | Nemotron-3-Ultra-550B | OpenRouter FREE | Free |
 
-**Fallback chains** (OpenRouter FREE — MedGemma / Qwen / Meta / NVIDIA only):
+**Fallback chains** (OpenRouter FREE — MedGemma / Qwen / Meta / NVIDIA brand filter):
 - Banking: Nemotron-3-Super-120B → Nemotron-3-Ultra-550B → Nemotron-3-Nano-30B → Nemotron-Nano-9B
-- Medical: Nemotron-3-Super-120B (if MedGemma/Qwen HF unavailable) → Ultra → Nano
+- Medical: Nemotron-Ultra → Nano-30B → Nano-9B → optional HF Qwen3-32B
 - E-commerce: Nemotron-3-Super-120B → Nemotron-3-Nano-30B → Nemotron-Nano-9B
 - Supply Chain: Nemotron-3-Super-120B → Nemotron-3-Nano-30B → Nemotron-Nano-9B
 
 OpenRouter free Qwen/Llama slugs are gone (404). HF large chat models need Inference credits (402 otherwise);
-embeddings (MiniLM) still work on HF free for RAG.
+embeddings (MiniLM) still work on HF free for RAG. Medical Stage 1 uses `MEDGEMMA_LOCAL_*` env (Mac Mini).
 
 ## Validation Logic
 
-**Medical**: MedGemma-27B Stage 1 (clinical) → Qwen3-32B Stage 2 (fraud); trust two-stage pipeline unless extreme discrepancy (rule > 75 AND llm < 25)
+**Medical**: MedGemma-Local Stage 1 (clinical) → Nemotron-Super Stage 2 (fraud); trust two-stage pipeline unless extreme risk-band reversal
 
 **Others**:
 - Reject if: rule < 10 AND llm > 85 (false positive)
@@ -108,10 +115,16 @@ embeddings (MiniLM) still work on HF free for RAG.
 
 ## Deployment
 
-**Local**: Docker Compose (FastAPI + Next.js)
+**Local**: Docker Compose — three services
+- `mcp` → `http://localhost:8081` (`backend/mcp-server`)
+- `backend` → `http://localhost:8000` (`MCP_SERVER_URL=http://mcp:8080`)
+- `frontend` → `http://localhost:3000`
 
-**Production**: GCP Cloud Run
-- Auto-scaling 0-10 instances
+**Production**: GCP Cloud Run — three services
+- `fraud-forge-mcp` — deterministic MCP tool server (image from `backend/mcp-server`)
+- `fraud-forge-backend` — FastAPI + LangGraph; env `MCP_SERVER_URL` → MCP service URL
+- `fraud-forge-frontend` — Next.js UI
+- Auto-scaling / scale-to-zero (free tier friendly)
 - Optional API-key auth (`FRAUDFORGE_API_KEY`) + per-IP rate limiting
 - Secrets in GCP Secret Manager (Terraform-managed)
 - Budget alerts + kill switch at $5

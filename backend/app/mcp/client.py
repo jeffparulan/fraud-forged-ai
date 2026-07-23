@@ -51,10 +51,13 @@ class MCPClient:
             response = httpx.get(f"{self.mcp_server_url}/health", timeout=3.0)
             if response.status_code == 200:
                 return {"ok": True, "detail": "healthy"}
-            # Some MCP servers only expose /tools/list
-            response = httpx.post(f"{self.mcp_server_url}/tools/list", timeout=3.0)
-            if response.status_code == 200:
-                return {"ok": True, "detail": "tools reachable"}
+            # Prefer POST /tools/list, then GET (demo server supports both)
+            for method in ("POST", "GET"):
+                response = httpx.request(
+                    method, f"{self.mcp_server_url}/tools/list", timeout=3.0
+                )
+                if response.status_code == 200:
+                    return {"ok": True, "detail": "tools reachable"}
             return {"ok": False, "detail": f"HTTP {response.status_code}"}
         except Exception as e:
             return {"ok": False, "detail": str(e)}
@@ -69,16 +72,18 @@ class MCPClient:
         if not self.enabled:
             return []
 
-        try:
-            response = httpx.post(
-                f"{self.mcp_server_url}/tools/list",
-                timeout=5.0
-            )
-            response.raise_for_status()
-            return response.json().get("tools", [])
-        except Exception as e:
-            logger.warning(f"Could not fetch MCP tools: {e}")
-            return []
+        last_error: Optional[Exception] = None
+        for method in ("POST", "GET"):
+            try:
+                response = httpx.request(
+                    method, f"{self.mcp_server_url}/tools/list", timeout=5.0
+                )
+                response.raise_for_status()
+                return response.json().get("tools", [])
+            except Exception as e:
+                last_error = e
+        logger.warning(f"Could not fetch MCP tools: {last_error}")
+        return []
 
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """

@@ -11,18 +11,60 @@ import ResultDisplay from '@/components/ResultDisplay'
 import { FraudDetectionResponse } from '@/lib/api'
 import { useModelSummary, SectorId } from '@/lib/models'
 
-function BrandIcon({ sectorId }: { sectorId: SectorId }) {
+function BrandMark({ src, alt }: { src: string; alt: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="inline-block w-3.5 h-3.5 mr-1 align-middle shrink-0"
+    />
+  )
+}
+
+/** Sector model line with brand marks (Medical is two-stage: GCP MedGemma + NVIDIA Nemotron). */
+function SectorModelLabel({ sectorId, label }: { sectorId: SectorId; label: string }) {
   if (sectorId === 'banking') {
-    return <img src="/qwen-logo.svg" alt="" className="inline-block w-3 h-3 mr-1 align-middle" />
-  }
-  if (sectorId === 'medical') {
     return (
-      <>
-        <img src="/gcp-logo.png" alt="" className="inline-block w-3 h-3 mr-1 align-middle" />
-      </>
+      <span className="inline-flex items-center justify-center flex-wrap gap-y-1">
+        <BrandMark src="/qwen-logo.svg" alt="Qwen" />
+        <span>{label}</span>
+      </span>
     )
   }
-  return <img src="/nvidia-logo.svg" alt="" className="inline-block w-3 h-3 mr-1 align-middle" />
+
+  if (sectorId === 'medical') {
+    const cleaned = label.replace(/^Two-Stage:\s*/i, '')
+    const parts = cleaned.split(/\s*→\s*|\s*->\s*/)
+    if (parts.length >= 2) {
+      return (
+        <span className="inline-flex items-center justify-center flex-wrap gap-x-1 gap-y-1">
+          <span className="inline-flex items-center">
+            <BrandMark src="/gcp-logo.png" alt="Google Cloud Platform" />
+            <span>{parts[0].trim()}</span>
+          </span>
+          <span aria-hidden="true">→</span>
+          <span className="inline-flex items-center">
+            <BrandMark src="/nvidia-logo.svg" alt="NVIDIA" />
+            <span>{parts.slice(1).join(' → ').trim()}</span>
+          </span>
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center justify-center flex-wrap gap-x-1">
+        <BrandMark src="/gcp-logo.png" alt="Google Cloud Platform" />
+        <BrandMark src="/nvidia-logo.svg" alt="NVIDIA" />
+        <span>{label}</span>
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center justify-center flex-wrap gap-y-1">
+      <BrandMark src="/nvidia-logo.svg" alt="NVIDIA" />
+      <span>{label}</span>
+    </span>
+  )
 }
 
 export default function DetectPage() {
@@ -116,9 +158,8 @@ export default function DetectPage() {
             >
               <sector.icon className={`w-8 h-8 mx-auto mb-3 ${sector.color}`} />
               <div className="text-white font-semibold mb-1">{sector.name}</div>
-              <div className={`text-sm ${sector.color} font-mono`}>
-                <BrandIcon sectorId={sector.id} />
-                {getPrimary(sector.id)}
+              <div className={`text-sm ${sector.color} font-mono leading-snug`}>
+                <SectorModelLabel sectorId={sector.id} label={getPrimary(sector.id)} />
               </div>
             </motion.button>
           ))}

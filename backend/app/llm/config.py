@@ -49,17 +49,24 @@ def reload_models_config() -> Dict[str, Any]:
     return load_models_config()
 
 
-def _resolve_ref(ref: str, catalog: Dict[str, Any]) -> Dict[str, str]:
+def _resolve_ref(ref: str, catalog: Dict[str, Any]) -> Dict[str, Any]:
     entry = catalog.get(ref)
     if not entry:
         raise KeyError(f"Unknown model ref '{ref}' in models.yaml catalog")
-    return {
+    resolved: Dict[str, Any] = {
         "provider": entry["provider"],
         "model": entry["id"],
         "display": entry.get("display") or entry["id"],
         "brand": entry.get("brand", ""),
         "ref": ref,
     }
+    # Optional HF Inference Providers partner (e.g. featherless-ai for MedGemma)
+    if entry.get("hf_provider"):
+        resolved["hf_provider"] = entry["hf_provider"]
+    # Optional Gradio Space API path (e.g. /analyze_claim)
+    if entry.get("space_api_name"):
+        resolved["space_api_name"] = entry["space_api_name"]
+    return resolved
 
 
 def _build_sector_models(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -67,11 +74,15 @@ def _build_sector_models(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     sectors: Dict[str, Dict[str, Any]] = {}
 
     for sector, cfg in (raw.get("sectors") or {}).items():
-        fallbacks = [
-            {"provider": r["provider"], "model": r["model"]}
-            for ref in cfg.get("fallbacks") or []
-            for r in [_resolve_ref(ref, catalog)]
-        ]
+        fallbacks = []
+        for ref in cfg.get("fallbacks") or []:
+            r = _resolve_ref(ref, catalog)
+            fb: Dict[str, Any] = {"provider": r["provider"], "model": r["model"]}
+            if r.get("hf_provider"):
+                fb["hf_provider"] = r["hf_provider"]
+            if r.get("display"):
+                fb["display"] = r["display"]
+            fallbacks.append(fb)
 
         if cfg.get("two_stage"):
             s1 = cfg["stage1"]
@@ -80,6 +91,9 @@ def _build_sector_models(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             r2 = _resolve_ref(s2["ref"], catalog)
             sectors[sector] = {
                 "two_stage": True,
+                # When true, Stage 1 failure continues to Stage 2 instead of
+                # jumping straight to catalog fallbacks.
+                "stage1_optional": bool(cfg.get("stage1_optional", False)),
                 "label": cfg.get("label", sector),
                 "route_display": cfg.get("route_display", ""),
                 "ui_model": cfg.get("ui_model") or cfg.get("route_display", ""),
@@ -90,6 +104,8 @@ def _build_sector_models(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                     "model": r1["model"],
                     "display": r1["display"],
                     "purpose": s1.get("purpose", ""),
+                    **({"hf_provider": r1["hf_provider"]} if r1.get("hf_provider") else {}),
+                    **({"space_api_name": r1["space_api_name"]} if r1.get("space_api_name") else {}),
                 },
                 "stage2": {
                     "name": s2.get("name", "Stage 2"),
@@ -97,22 +113,27 @@ def _build_sector_models(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                     "model": r2["model"],
                     "display": r2["display"],
                     "purpose": s2.get("purpose", ""),
+                    **({"hf_provider": r2["hf_provider"]} if r2.get("hf_provider") else {}),
+                    **({"space_api_name": r2["space_api_name"]} if r2.get("space_api_name") else {}),
                 },
                 "fallbacks": fallbacks,
             }
         else:
             primary = _resolve_ref(cfg["primary"], catalog)
+            primary_cfg: Dict[str, Any] = {
+                "provider": primary["provider"],
+                "model": primary["model"],
+                "display": primary["display"],
+            }
+            if primary.get("hf_provider"):
+                primary_cfg["hf_provider"] = primary["hf_provider"]
             sectors[sector] = {
                 "two_stage": False,
                 "label": cfg.get("label", sector),
                 "route_display": cfg.get("route_display", primary["display"]),
                 "ui_model": cfg.get("ui_model") or cfg.get("route_display", primary["display"]),
                 "blurb": cfg.get("blurb", ""),
-                "primary": {
-                    "provider": primary["provider"],
-                    "model": primary["model"],
-                    "display": primary["display"],
-                },
+                "primary": primary_cfg,
                 "fallbacks": fallbacks,
             }
     return sectors
@@ -134,7 +155,7 @@ def get_inference_defaults(provider: str) -> Dict[str, Any]:
 def get_sector_route_display(sector: str) -> str:
     """Human-readable model label for decision-trace routing."""
     cfg = SECTOR_MODELS.get(sector) or {}
-    return cfg.get("route_display") or "Llama-3.3-70B (OpenRouter FREE fallback)"
+    return cfg.get("route_display") or "Nemotron-Super (OpenRouter FREE fallback)"
 
 
 def get_sector_ui_model(sector: str) -> str:
@@ -165,6 +186,8 @@ def format_model_name(
         mn = model_name.lower()
         if "qwen3-32b" in mn:
             display_name = "Qwen3-32B"
+        elif "medgemma-4b" in mn or "google-medgemma-4b" in mn:
+            display_name = "MedGemma-4B"
         elif "medgemma-27b" in mn:
             display_name = "MedGemma-27B"
         elif "nemotron-3-ultra" in mn:
@@ -183,11 +206,14 @@ def format_model_name(
         "openrouter": "OpenRouter FREE",
         "hf_space": "HF Space",
         "vertex": "Vertex AI",
+        "medgemma_local": "Local",
     }.get(provider, provider)
 
     if is_fallback and fallback_number is not None:
         return f"{display_name} (Fallback #{fallback_number} - {provider_display})"
-    return f"{display_name} ({provider_display})" if provider in ("hf", "openrouter") else display_name
+    if provider in ("hf", "openrouter", "hf_space", "medgemma_local"):
+        return f"{display_name} ({provider_display})"
+    return display_name
 
 
 def get_sector_model_candidates(sector: str) -> List[Dict[str, str]]:

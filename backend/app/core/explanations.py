@@ -82,10 +82,15 @@ def explain_banking(data: Dict[str, Any], score: float) -> str:
 
 def explain_medical(data: Dict[str, Any], score: float) -> str:
     factors = []
-    claim_amount = data.get("claim_amount", 0)
+    try:
+        claim_amount = float(data.get("claim_amount", 0) or 0)
+    except (TypeError, ValueError):
+        claim_amount = 0.0
     if claim_amount > 20000:
         factors.append(f"high claim amount (${claim_amount:,.2f})")
-    procedures = data.get("procedures", [])
+    procedures = data.get("procedures") or data.get("procedure_codes") or []
+    if isinstance(procedures, str):
+        procedures = [p.strip() for p in procedures.split(",") if p.strip()]
     if isinstance(procedures, list) and len(procedures) > 5:
         factors.append(f"{len(procedures)} procedures in single claim")
     if data.get("diagnosis_mismatch"):

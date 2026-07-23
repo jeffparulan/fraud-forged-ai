@@ -65,9 +65,23 @@ variable "openrouter_key" {
 }
 
 variable "medgemma_url" {
-  description = "MedGemma Colab URL"
+  description = "MedGemma Colab URL (legacy unused)"
   type        = string
   default     = ""
+}
+
+variable "medgemma_local_base_url" {
+  description = "Local MedGemma base URL (ngrok). Empty disables Stage 1 local path."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "medgemma_local_api_key" {
+  description = "API key for local MedGemma /v1/audit-claim (X-API-Key)."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "pinecone_api_key" {

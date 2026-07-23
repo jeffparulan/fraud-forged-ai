@@ -27,7 +27,7 @@ Most "LLM + RAG" fraud demos are a single prompt behind a form. FraudForge AI is
 
 1. **6-node auditable LangGraph pipeline** — Every verdict returns a full decision trace (route → MCP enrich → RAG → LLM cross-validation → post-score guardrails → explanation) with per-node latency, RAG similarity scores, and MCP status. You can see *why* the system decided, not just the score.
 2. **LLM cross-validation + post-score guardrails** — LLM scores are validated against an independent rule-based engine; OFAC geography, high RAG similarity, and MCP blockchain flags can escalate a too-low score. The response is transparent about which method won.
-3. **Two-stage medical pipeline** — MedGemma-27B validates clinical legitimacy before Qwen3-32B scores fraud, mirroring how real claim reviews separate clinical review from fraud review.
+3. **Two-stage medical pipeline** — Local MedGemma (Mac Mini) validates clinical legitimacy before Nemotron-Super scores fraud, mirroring how real claim reviews separate clinical review from fraud review.
 4. **Famous-brand model stack only** — MedGemma, Qwen, Meta, NVIDIA. No random free-tier models. Nemotron-3-Ultra (Finance #16) for e-commerce and supply chain.
 5. **Cost-bounded by design** — Budget alerts wired to a kill switch and scale-to-zero Cloud Run keep worst-case spend capped, so the demo can stay live for ~free.
 
@@ -46,8 +46,9 @@ cp .env.example .env
 
 # Access at:
 # - Frontend: http://localhost:3000
-# - Backend:  http://localhost:8080
-# - API Docs: http://localhost:8080/docs
+# - Backend:  http://localhost:8000
+# - MCP:      http://localhost:8081
+# - API Docs: http://localhost:8000/docs
 ```
 
 ### Deploy to Google Cloud (Production)
@@ -73,31 +74,43 @@ cd ..
 
 ## 🏗️ Architecture
 
-**Next.js Frontend** → **FastAPI Backend** → **LangGraph Router** → **Multi-Provider LLMs** → **Pinecone RAG** → **Fraud Score**
+**Next.js (frontend)** → **FastAPI (backend)** → **LangGraph** → **MCP tools** + **Pinecone RAG** → **LLMs** → **Fraud Score**
+
+Production and local both run **three containers**:
+
+| Service | Image / folder | Role |
+|---------|----------------|------|
+| `fraud-forge-frontend` | `frontend/` | Next.js UI |
+| `fraud-forge-backend` | `backend/` | FastAPI + LangGraph pipeline |
+| `fraud-forge-mcp` | `backend/mcp-server/` | Deterministic MCP tool server (wallets, providers, sellers) |
+
+The backend calls MCP over HTTP (`MCP_SERVER_URL`). Soft-fails to `mcp: disabled` if unset. Pinecone uses namespace `rag` for fraud patterns; optional `mcp` namespace for external context preload (separate from the MCP HTTP tools).
 
 ### Components
-- **Frontend**: Next.js 14 with 4 industry-specific fraud detection forms
-- **Backend**: FastAPI + LangGraph intelligent routing + MCP integration
+- **Frontend**: Next.js with 4 industry-specific fraud detection forms
+- **Backend**: FastAPI + LangGraph (route → MCP enrich → RAG → LLM → guardrails → explain)
+- **MCP**: Standalone Cloud Run / Compose service — first-class pipeline stage, not in-process stubs
 - **RAG**: Pinecone cloud vector database with fraud pattern matching
-- **Infrastructure**: Terraform-managed Google Cloud Run (free tier optimized)
+- **Infrastructure**: Terraform-managed Google Cloud Run (3 services, free tier optimized)
 
 ### AI Models (July 2026)
 
 | Sector | Model | Provider | Purpose |
 |--------|-------|----------|----------|
 | Banking | Qwen3-32B | HF Inference | Financial reasoning, AML patterns |
-| Medical | MedGemma-27B → Qwen3-32B | HF Inference (Featherless AI) | Clinical validation → Fraud analysis |
+| Medical | MedGemma-Local → Nemotron-Super | Local (ngrok) → OpenRouter FREE | Clinical validation → Fraud analysis |
 | E-commerce | Nemotron-3-Ultra-550B | OpenRouter FREE | Marketplace fraud (Finance #16) |
 | Supply Chain | Nemotron-3-Ultra-550B | OpenRouter FREE | Long-context logistics fraud reasoning |
 
-**Fallback chains** (OpenRouter FREE — MedGemma / Qwen / Meta / NVIDIA only):
+**Fallback chains** (OpenRouter FREE — MedGemma / Qwen / Meta / NVIDIA brand filter):
 - Banking: Nemotron-3-Super-120B → Nemotron-3-Ultra-550B → Nemotron-3-Nano-30B → Nemotron-Nano-9B
-- Medical: Nemotron-3-Super-120B (if MedGemma/Qwen HF unavailable) → Ultra → Nano
+- Medical: Nemotron-Ultra → Nano-30B → Nano-9B → optional HF Qwen3-32B
 - E-commerce: Nemotron-3-Super-120B → Nemotron-3-Nano-30B → Nemotron-Nano-9B
 - Supply Chain: Nemotron-3-Super-120B → Nemotron-3-Nano-30B → Nemotron-Nano-9B
 
-Note: OpenRouter removed free Qwen/Llama slugs (404). Free path is NVIDIA Nemotron only.
-HF Qwen3-32B / MedGemma-27B remain preferred primaries when the HF account has Inference credits;
+Note: OpenRouter removed free Qwen/Llama slugs (404). Medical Stage 2 free path is NVIDIA Nemotron.
+Medical Stage 1 is local MedGemma via `MEDGEMMA_LOCAL_BASE_URL` / `MEDGEMMA_LOCAL_API_KEY`.
+HF Qwen3-32B remains banking primary (and optional medical fallback) when the HF account has Inference credits;
 without credits they 402 and fail-fast into the OpenRouter FREE chain above.
 
 [**View Interactive Architecture Diagram →**](https://fraud-forge-frontend-203639324676.us-central1.run.app/docs/fraud-diagram.html)
@@ -109,7 +122,7 @@ without credits they 402 and fail-fast into the OpenRouter FREE chain above.
 | Industry | Model | Capability |
 |----------|-------|------------|
 | 🏦 Banking | Qwen3-32B (HF Inference) | Transaction analysis with financial reasoning |
-| 🏥 Medical | MedGemma-27B → Qwen3-32B (HF Inference) | Clinical validation + fraud pattern detection |
+| 🏥 Medical | MedGemma-Local → Nemotron-Super | Clinical validation (local) + fraud pattern detection |
 | 🛒 E-commerce | Nemotron-3-Ultra-550B (OpenRouter FREE) | Marketplace fraud detection (Finance #16) |
 | 🚚 Supply Chain | Nemotron-3-Ultra-550B (OpenRouter FREE) | Logistics compliance fraud detection (1M context) |
 
@@ -119,9 +132,10 @@ without credits they 402 and fail-fast into the OpenRouter FREE chain above.
 |------|--------|
 | 1 | Analyze input sector and context |
 | 2 | Route to optimal domain-specific LLM |
-| 3 | Query Pinecone for similar fraud patterns |
-| 4 | Generate 0-100% fraud score with explanation |
-| 5 | Return results in <2 seconds |
+| 3 | Enrich via MCP tools (wallets / providers / sellers) |
+| 4 | Query Pinecone (`rag` namespace) for similar fraud patterns |
+| 5 | Cross-validate LLM vs rules + post-score guardrails |
+| 6 | Return score, explanation, and decision trace |
 
 ### Cost-Optimized Operations
 
@@ -165,15 +179,16 @@ without credits they 402 and fail-fast into the OpenRouter FREE chain above.
 |------------|----------|
 | FastAPI | High-performance Python API |
 | LangGraph | AI workflow orchestration |
-| Pinecone | Cloud vector database for RAG |
-| Multi-Provider LLM | Hugging Face, OpenRouter, Vertex AI |
+| MCP tool server | External context tools (`backend/mcp-server`) |
+| Pinecone | Cloud vector database for RAG (`rag` namespace) |
+| Multi-Provider LLM | Hugging Face, OpenRouter |
 
 ### Infrastructure
 
 | Technology | Purpose |
 |------------|----------|
 | Terraform | Infrastructure as Code |
-| Google Cloud Run | Serverless container platform |
+| Google Cloud Run | 3 serverless services (frontend, backend, MCP) |
 | Secret Manager | API keys stored securely (Terraform-managed) |
 | GitHub Actions | CI: backend tests, frontend build, Terraform validate |
 | Docker | Local development and deployment |
@@ -182,23 +197,20 @@ without credits they 402 and fail-fast into the OpenRouter FREE chain above.
 
 ```
 fraud-forged-ai/
-├── frontend/              # Next.js application
-│   ├── app/              # Pages and routes
-│   ├── components/       # React components
-│   └── lib/             # Utilities
-├── backend/              # FastAPI application
+├── frontend/                 # Next.js → fraud-forge-frontend
+├── backend/                  # FastAPI → fraud-forge-backend
 │   ├── app/
-│   │   ├── core/        # Core business logic
-│   │   │   ├── router.py         # LangGraph orchestration
-│   │   │   ├── rag_engine.py     # RAG engine
-│   │   │   ├── validation.py     # LLM validation
-│   │   │   └── explanations.py   # Explanation generation
-│   │   ├── llm/         # LLM integration (chains, prompts, providers)
-│   │   ├── mcp/         # Model Context Protocol
-│   │   └── api/         # FastAPI endpoints
+│   │   ├── core/             # LangGraph router, RAG, validation, guardrails
+│   │   ├── llm/              # models.yaml, orchestrator, prompts
+│   │   └── mcp/              # MCP HTTP client (+ optional Pinecone mcp namespace helper)
+│   ├── mcp-server/           # Standalone image → fraud-forge-mcp
+│   │   ├── Dockerfile
+│   │   ├── mcp_server.py
+│   │   └── requirements-mcp.txt
 │   └── requirements.txt
-├── infrastructure/       # Terraform configs
-└── deploy-terraform.sh  # Deployment script
+├── infrastructure/           # Terraform (3 Cloud Run services)
+├── docker-compose.yml        # Local: mcp + backend + frontend
+└── deploy-terraform.sh       # Build/push/deploy all three images
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details.
@@ -209,10 +221,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details.
 |------|-------------|
 | 1. User Input | Submit transaction/claim through industry-specific form |
 | 2. LangGraph Routing | Routes to optimal sector-specific LLM |
-| 3. RAG Enhancement | Pinecone retrieves similar fraud patterns |
-| 4. AI Analysis | LLM processes input with context |
-| 5. Score Generation | Returns 0-100% fraud score with explanation |
-| 6. Response | Complete analysis in <2 seconds |
+| 3. MCP Enrichment | Backend calls `fraud-forge-mcp` tools for external signals |
+| 4. RAG Enhancement | Pinecone `rag` namespace retrieves similar fraud patterns |
+| 5. AI Analysis | LLM processes input with MCP + RAG context |
+| 6. Guardrails + Score | Cross-validation + OFAC/RAG/MCP floors; decision trace returned |
 
 ## 🔧 Configuration
 
@@ -231,6 +243,10 @@ OPENROUTER_API_KEY=your_key_here
 
 # GCP (for deployment)
 GCP_PROJECT_ID=your-project-id
+
+# MCP (optional — compose/deploy set this automatically)
+# Host-run backend: MCP_SERVER_URL=http://localhost:8081
+# MCP_SERVER_URL=http://localhost:8081
 ```
 
 See `.env.example` for all available options.
@@ -245,8 +261,9 @@ See `.env.example` for all available options.
 
 # Services:
 # - Frontend: http://localhost:3000
-# - Backend:  http://localhost:8080
-# - API Docs: http://localhost:8080/docs
+# - Backend:  http://localhost:8000
+# - MCP:      http://localhost:8081/health
+# - API Docs: http://localhost:8000/docs
 ```
 
 **Requirements:** Docker Desktop

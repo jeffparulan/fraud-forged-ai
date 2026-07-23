@@ -22,7 +22,10 @@ const SAMPLE_SCENARIOS = [
       diagnosis_codes: 'Z00.00',
       procedure_codes: '99213',
       claim_amount: '150',
-      claim_details: 'Annual checkup with basic examination',
+      claim_details:
+        'Established patient annual wellness visit. Review of systems negative. Vitals stable. ' +
+        'Physical exam age-appropriate. Counseling on diet and exercise. No acute complaints. ' +
+        'Assessment: general adult medical examination (Z00.00). Plan: routine labs next year.',
       provider_history: 'clean'
     }
   },
@@ -35,14 +38,17 @@ const SAMPLE_SCENARIOS = [
       provider_id: 'PRV-45821',
       specialty: 'Cardiology',
       diagnosis_codes: 'I25.10, E11.9, I10',
-      procedure_codes: '93000, 93015, 93306, 93350, 77080, 71020, 80053, 84443',
-      claim_amount: '75000',
-      claim_details: 'Comprehensive cardiac workup with multiple imaging studies, extensive lab work. Patient received all tests in single visit.',
+      procedure_codes: '93000, 93015, 93306, 93350, 71020, 80053',
+      claim_amount: '45000',
+      claim_details:
+        'Cardiology note: CAD (I25.10), T2DM (E11.9), HTN (I10). Same-day billed ECG (93000), stress test (93015), ' +
+        'echo (93306), stress echo (93350), chest x-ray (71020), CMP (80053). ' +
+        'Patient received all tests in a single visit. Intensity of testing exceeds documented clinical indication.',
       provider_history: 'flagged'
     }
   },
   {
-    name: 'Phantom Billing (High Risk)',
+    name: 'Phantom Billing (Critical Risk)',
     data: {
       claim_id: 'CLM-2024-55123',
       patient_age: '28',
@@ -50,9 +56,12 @@ const SAMPLE_SCENARIOS = [
       provider_id: 'PRV-11223',
       specialty: 'Pain Management',
       diagnosis_codes: 'M79.3, M54.5',
-      procedure_codes: '64483, 64484, 77003, 99213, 99214',
-      claim_amount: '12500',
-      claim_details: 'Multiple epidural injections and consultations. Patient records show no visits on claimed dates.',
+      procedure_codes: '64483, 64484, 77003, 99213',
+      claim_amount: '22000',
+      claim_details:
+        'Claim lists lumbar epidural injections (64483/64484), fluoro guidance (77003), and E/M visit (99213) ' +
+        'for myalgia (M79.3) and low back pain (M54.5). Clinic schedule and EHR show no visits on the claimed dates. ' +
+        'No consent or vitals recorded for the billed injection dates.',
       provider_history: 'flagged'
     }
   },
@@ -67,7 +76,11 @@ const SAMPLE_SCENARIOS = [
       diagnosis_codes: 'M17.11, M25.561',
       procedure_codes: '27447, 27486, 29881, 29882',
       claim_amount: '28000',
-      claim_details: 'Knee replacement surgery with separately billed arthroscopy. Procedures typically bundled together.',
+      claim_details:
+        'Operative note: Right total knee arthroplasty (CPT 27447) for primary OA (M17.11) with knee pain (M25.561). ' +
+        'Same encounter also billed revision component (27486) plus arthroscopic meniscectomy/repair (29881, 29882). ' +
+        'Arthroscopy was performed in the same operative session as the arthroplasty. ' +
+        'Billing concern: arthroscopy and arthroplasty components are typically bundled rather than billed separately.',
       provider_history: 'clean'
     }
   },
@@ -82,7 +95,10 @@ const SAMPLE_SCENARIOS = [
       diagnosis_codes: 'M54.5, M25.511',
       procedure_codes: '97110, 97112, 97140, 97530',
       claim_amount: '8500',
-      claim_details: 'Extended physical therapy sessions (3x per week for 6 months). No significant improvement documented. Minimal supporting documentation.',
+      claim_details:
+        'PT progress note: low back pain (M54.5) and shoulder pain (M25.511). Treatment includes therapeutic exercise (97110), ' +
+        'neuromuscular re-ed (97112), manual therapy (97140), and therapeutic activities (97530), 3x/week for 6 months. ' +
+        'Functional scores unchanged across reassessments. No significant improvement documented. Minimal supporting documentation.',
       provider_history: 'clean'
     }
   },
@@ -97,7 +113,11 @@ const SAMPLE_SCENARIOS = [
       diagnosis_codes: 'M48.06, G95.11, M50.22',
       procedure_codes: '63081, 22614, 20936',
       claim_amount: '45000',
-      claim_details: 'Spinal fusion with instrumentation. Complex multi-level procedure with bone grafting. Well documented medical necessity.',
+      claim_details:
+        'Operative note: Cervical corpectomy (63081) with arthrodesis (22614) and autograft (20936) for spinal stenosis (M48.06), ' +
+        'myelopathy (G95.11), and cervical disc disorder (M50.22). Progressive neurologic deficits documented. MRI correlation present. ' +
+        'Operative findings and decompression results documented. Complex multi-level procedure with bone grafting. ' +
+        'Well documented medical necessity and consent.',
       provider_history: 'clean'
     }
   }
@@ -118,6 +138,7 @@ export default function MedicalForm({ onResult, onLoading }: Props) {
   })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedSampleIndex, setSelectedSampleIndex] = useState<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,7 +164,9 @@ export default function MedicalForm({ onResult, onLoading }: Props) {
           claim_details: formData.claim_details,
           provider_history: formData.provider_history,
           procedures: procedureList,
-          diagnosis_mismatch: diagnosisList.length > 0 && procedureList.length > 0 && diagnosisList.length !== procedureList.length
+          // Do NOT flag diagnosis_mismatch from ICD vs CPT count inequality —
+          // unequal counts are normal in claims and were falsely pushing Medium
+          // samples (e.g. Unbundling) to CRITICAL (+40).
         }
       })
       onResult(result)
@@ -158,6 +181,7 @@ export default function MedicalForm({ onResult, onLoading }: Props) {
   const loadSample = (index: number) => {
     const sample = SAMPLE_SCENARIOS[index]
     setFormData(sample.data)
+    setSelectedSampleIndex(index)
   }
 
   return (
@@ -168,17 +192,33 @@ export default function MedicalForm({ onResult, onLoading }: Props) {
           Load Sample Scenario:
         </label>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-          {SAMPLE_SCENARIOS.map((scenario, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => loadSample(index)}
-              className="px-3 py-2 text-xs glass-effect text-white rounded hover:bg-white/10 transition-colors text-left"
-            >
-              {scenario.name}
-            </button>
-          ))}
+          {SAMPLE_SCENARIOS.map((scenario, index) => {
+            const selected = selectedSampleIndex === index
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => loadSample(index)}
+                aria-pressed={selected}
+                className={`px-3 py-2 text-xs rounded transition-colors text-left border ${
+                  selected
+                    ? 'bg-sapphire-500/25 border-sapphire-400 text-white ring-1 ring-sapphire-400/60'
+                    : 'glass-effect border-transparent text-white hover:bg-white/10'
+                }`}
+              >
+                {scenario.name}
+              </button>
+            )
+          })}
         </div>
+        {selectedSampleIndex !== null && (
+          <p className="mt-3 text-sm text-sapphire-300">
+            Selected scenario:{' '}
+            <span className="font-semibold text-white">
+              {SAMPLE_SCENARIOS[selectedSampleIndex].name}
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
