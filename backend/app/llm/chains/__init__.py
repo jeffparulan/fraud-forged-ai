@@ -1,6 +1,6 @@
 """Sector-specific fraud scoring chains."""
-from .banking_chain import score_banking_fraud, score_banking_fraud_detailed
-from .medical_chain import score_medical_fraud, score_medical_fraud_detailed
+from .banking_chain import score_banking_fraud_detailed
+from .medical_chain import score_medical_fraud_detailed
 from .ecommerce_chain import score_ecommerce_fraud
 from .supply_chain_chain import score_supply_chain_fraud
 from typing import Dict, Any, List, Tuple
@@ -9,8 +9,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 SCORING_CHAINS = {
-    "banking": score_banking_fraud,
-    "medical": score_medical_fraud,
     "ecommerce": score_ecommerce_fraud,
     "supply_chain": score_supply_chain_fraud,
 }

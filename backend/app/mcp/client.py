@@ -10,7 +10,7 @@ in a standardized way. This enables:
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -61,29 +61,6 @@ class MCPClient:
             return {"ok": False, "detail": f"HTTP {response.status_code}"}
         except Exception as e:
             return {"ok": False, "detail": str(e)}
-
-    def get_tools(self) -> List[Dict[str, Any]]:
-        """
-        Discover available MCP tools.
-
-        Returns:
-            List of available tools with their schemas
-        """
-        if not self.enabled:
-            return []
-
-        last_error: Optional[Exception] = None
-        for method in ("POST", "GET"):
-            try:
-                response = httpx.request(
-                    method, f"{self.mcp_server_url}/tools/list", timeout=5.0
-                )
-                response.raise_for_status()
-                return response.json().get("tools", [])
-            except Exception as e:
-                last_error = e
-        logger.warning(f"Could not fetch MCP tools: {last_error}")
-        return []
 
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """

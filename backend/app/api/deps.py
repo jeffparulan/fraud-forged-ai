@@ -23,11 +23,3 @@ def set_app_state(state: Dict[str, Any]) -> None:
 def get_app_state() -> Dict[str, Any]:
     """Get the shared app state for dependency injection."""
     return _app_state
-
-
-def get_router():
-    """Get LangGraph router from app state."""
-    state = get_app_state()
-    if "router" not in state:
-        return None
-    return state["router"]

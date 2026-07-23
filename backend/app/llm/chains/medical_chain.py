@@ -158,9 +158,3 @@ def score_medical_fraud_detailed(data: Dict[str, Any]) -> Tuple[float, List[Dict
 
     final = max(0.0, min(100.0, score))
     return final, breakdown
-
-
-def score_medical_fraud(data: Dict[str, Any]) -> float:
-    """Medical claims fraud scoring — claim amount, procedure volume, provider history, mismatch."""
-    score, _ = score_medical_fraud_detailed(data)
-    return score

@@ -35,13 +35,6 @@ export function sanitizeString(input: string): string {
   return sanitized.trim().slice(0, 10000) // Max length limit
 }
 
-// Validate email format
-export function validateEmail(email: string): boolean {
-  if (!email || typeof email !== 'string') return false
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) && email.length <= 254
-}
-
 // Validate numeric input
 export function validateNumber(value: any, min?: number, max?: number): boolean {
   const num = typeof value === 'string' ? parseFloat(value) : Number(value)
