@@ -9,6 +9,9 @@ on:
     - cron: "17 11 * * *"
   workflow_dispatch:
 
+# No repo access needed — job only curls an external HF Space URL.
+permissions: {}
+
 jobs:
   ping-space:
     runs-on: ubuntu-latest
