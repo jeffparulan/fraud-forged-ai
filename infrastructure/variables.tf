@@ -64,12 +64,6 @@ variable "openrouter_key" {
   sensitive   = true
 }
 
-variable "medgemma_url" {
-  description = "MedGemma Colab URL (legacy unused)"
-  type        = string
-  default     = ""
-}
-
 variable "medgemma_local_base_url" {
   description = "Local MedGemma base URL (ngrok). Empty disables Stage 1 local path."
   type        = string

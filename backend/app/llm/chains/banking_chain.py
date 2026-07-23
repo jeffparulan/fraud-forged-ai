@@ -157,9 +157,3 @@ def score_banking_fraud_detailed(data: Dict[str, Any]) -> Tuple[float, List[Dict
         })
 
     return clamped, breakdown
-
-
-def score_banking_fraud(data: Dict[str, Any]) -> float:
-    """Banking/crypto fraud scoring - amount, location, KYC, velocity, account age."""
-    score, _ = score_banking_fraud_detailed(data)
-    return score

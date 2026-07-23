@@ -43,12 +43,6 @@ def load_models_config() -> Dict[str, Any]:
     return data
 
 
-def reload_models_config() -> Dict[str, Any]:
-    """Clear cache and reload (tests / hot-edit)."""
-    load_models_config.cache_clear()
-    return load_models_config()
-
-
 def _resolve_ref(ref: str, catalog: Dict[str, Any]) -> Dict[str, Any]:
     entry = catalog.get(ref)
     if not entry:
@@ -156,17 +150,6 @@ def get_sector_route_display(sector: str) -> str:
     """Human-readable model label for decision-trace routing."""
     cfg = SECTOR_MODELS.get(sector) or {}
     return cfg.get("route_display") or "Nemotron-Super (OpenRouter FREE fallback)"
-
-
-def get_sector_ui_model(sector: str) -> str:
-    """Short UI label for sector cards."""
-    cfg = SECTOR_MODELS.get(sector) or {}
-    return cfg.get("ui_model") or get_sector_route_display(sector)
-
-
-def get_sector_label(sector: str) -> str:
-    cfg = SECTOR_MODELS.get(sector) or {}
-    return cfg.get("label") or sector
 
 
 def format_model_name(

@@ -180,9 +180,3 @@ class RAGEngine:
         except Exception as e:
             logger.error(f"❌ [Pinecone] Error upserting patterns to namespace '{self.namespace}': {e}", exc_info=True)
             raise
-    
-    def reset(self):
-        """Reset connection (Pinecone index is persistent, so we just reset connection)"""
-        self.index = None
-        self.pc = None
-        self.initialized = False
