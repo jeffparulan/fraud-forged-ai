@@ -43,13 +43,13 @@ locals {
 
   # Non-sensitive configuration, always plain env vars.
   backend_plain_env = {
-    PINECONE_INDEX_NAME     = var.pinecone_index_name
-    PINECONE_HOST           = var.pinecone_host
-    ALLOWED_ORIGINS         = var.allowed_origins
-    FRAUDFORGE_API_KEY      = var.fraudforge_api_key
-    GCP_PROJECT_ID          = var.project_id
-    MCP_SERVER_URL          = google_cloud_run_service.mcp.status[0].url
-    MEDICAL_TRY_STAGE2_LLM  = "1"
+    PINECONE_INDEX_NAME    = var.pinecone_index_name
+    PINECONE_HOST          = var.pinecone_host
+    ALLOWED_ORIGINS        = var.allowed_origins
+    FRAUDFORGE_API_KEY     = var.fraudforge_api_key
+    GCP_PROJECT_ID         = var.project_id
+    MCP_SERVER_URL         = google_cloud_run_service.mcp.status[0].url
+    MEDICAL_TRY_STAGE2_LLM = "1"
   }
 }
 
@@ -158,7 +158,7 @@ resource "google_cloud_run_service" "backend" {
         }
       }
 
-      timeout_seconds       = 300
+      timeout_seconds = 300
 
       container_concurrency = 80
     }
